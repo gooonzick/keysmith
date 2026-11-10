@@ -6,7 +6,7 @@ mod hosts;
 mod keys;
 
 use rune::{Chrome, Cx, El, Icon, KeyEvent, ScrollSpec, Tx, col};
-use rune_kit::shell::{self, Sidebar, SidebarRow, SidebarSection, SidebarToggle, SplitView};
+use rune_kit::shell::{self, PaneState, Sidebar, SidebarRow, SidebarSection, SidebarToggle, SplitView};
 use rune_kit::{Kit, Toast, ToastRegion, glyphs};
 
 use crate::app::{App, Page};
@@ -64,8 +64,8 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         layer.push(ToastRegion::new().toast(toast.build(&k)).build(&k));
     }
     let mut split = SplitView::new(main).sidebar(&s.sidebar, |s: &mut App| &mut s.sidebar, sidebar(s, &k));
-    if inspector_fits(s, cx) {
-        split = split.inspector(&s.inspector, |s: &mut App| &mut s.inspector, scroll_pane("inspector-scroll", inspector));
+    if let Some(pane) = inspector_pane(s, cx) {
+        split = split.inspector(&pane, |s: &mut App| &mut s.inspector, scroll_pane("inspector-scroll", inspector));
     }
     let split = split
         .toolbar(toolbar)
@@ -80,15 +80,22 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
     rune_kit::root(split, layer)
 }
 
-/// Whether the window has room for the sidebar, `size::LIST_MIN` of list and the inspector at
-/// its narrowest (`size::INSPECTOR_MIN`). The inspector is counted at its narrowest so the
-/// minimum window with the default sidebar keeps all three panes; at its default 400 the list
-/// gets up to 48 points less than `LIST_MIN`. In a narrower window (or beside a wider sidebar)
-/// the inspector goes first, and comes back when there is room. Before the first layout there
-/// is no width yet, and the inspector shows.
-fn inspector_fits(s: &App, cx: &Cx<App>) -> bool {
-    let needed = s.sidebar.shown_width() + size::LIST_MIN + size::INSPECTOR_MIN;
-    cx.layout_with("kit-root", move |r| r[2] >= needed).unwrap_or(true)
+/// The inspector pane as it is drawn, or `None` when the window has no room for it. The list
+/// keeps `size::LIST_MIN`: the inspector is drawn at the stored width, or narrower (down to
+/// `size::INSPECTOR_MIN`) when that is all the room there is. Below that it hides. The stored
+/// width in `App::inspector` is never changed, so the inspector returns to the width the user
+/// chose when the window widens. Before the first layout there is no width yet, and it shows at
+/// the stored width.
+fn inspector_pane(s: &App, cx: &Cx<App>) -> Option<PaneState> {
+    let stored = s.inspector;
+    let Some(window) = cx.layout_with("kit-root", |r| r[2]) else { return Some(stored) };
+    let room = window - s.sidebar.shown_width() - size::LIST_MIN;
+    if room < size::INSPECTOR_MIN {
+        return None;
+    }
+    let mut pane = stored;
+    pane.set_width(stored.width().min(room));
+    Some(pane)
 }
 
 fn sidebar(s: &App, k: &Kit) -> El {

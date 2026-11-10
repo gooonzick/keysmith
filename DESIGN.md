@@ -92,12 +92,14 @@ themes come from the kit.
    value at most 44 characters; otherwise the value moves under the label (a stacked row). In a
    list row the name keeps `ROW_NAME_MIN`; tags past it are cut.
 8. **Pane widths**: the sidebar is the kit's resizable pane (232 by default); the inspector is
-   `INSPECTOR_MIN`..=`INSPECTOR_MAX` (352–400); the list takes the rest. When the window is
-   narrower than sidebar + `LIST_MIN` + `INSPECTOR_MIN` (276 + 352), the inspector hides, and it
-   comes back when there is room again (`ui::inspector_fits`). 276 is the 860 minimum window less
-   the default sidebar and `INSPECTOR_MIN`, so the minimum window shows all three panes; a wider
-   sidebar hides the inspector first. The rule counts the inspector at its narrowest, so with
-   the inspector at 400 the list can get up to 48 less than `LIST_MIN`.
+   `INSPECTOR_MIN`..=`INSPECTOR_MAX` (352-400); the list takes the rest and keeps at least
+   `LIST_MIN` (276). When space is tight the inspector is drawn narrower than the width the user
+   chose, down to `INSPECTOR_MIN`; the stored width is never changed, so it returns to it when the
+   window widens. Below sidebar + `LIST_MIN` + `INSPECTOR_MIN` (276 + 352) the inspector hides,
+   and it comes back when there is room again (`ui::inspector_pane`). The 860 minimum window with
+   the default sidebar shows all three panes: sidebar 232, list 276, inspector 352. A wider sidebar
+   hides the inspector first. In a 276 list the toolbar title is at the leading edge and truncates
+   (`ds::toolbar_title`), and the filter placeholder is short enough for one line.
 9. **Words**: sentence case, no "please", an ellipsis is the "…" character (never `...`).
 10. **No empty frames**: a card with no rows is not drawn (`Card::build` returns `None`); an
     inspector with nothing selected shows an empty state (`Inspector::empty`): "Select a … to

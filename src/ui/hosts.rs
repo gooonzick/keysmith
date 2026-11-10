@@ -22,7 +22,7 @@ fn toolbar(s: &App, k: &Kit) -> Toolbar {
         Some(p) => s.paths.tilde(p),
         None => "Hosts".to_string(),
     };
-    Toolbar::new().title(title).trailing(
+    Toolbar::new().leading(ds::toolbar_title(k, title)).trailing(
         row()
             .gap(ds::space::S2)
             .center_y()
@@ -50,7 +50,7 @@ fn toolbar(s: &App, k: &Kit) -> Toolbar {
 }
 
 fn main(s: &App, k: &Kit, reduced: bool) -> El {
-    let filter = ds::filter(&s.filter, "Filter hosts by name, address, user or key").label("Filter hosts").on_edit(|s: &mut App| &mut s.filter).build(k).key("filter");
+    let filter = ds::filter(&s.filter, "Filter hosts").label("Filter hosts").on_edit(|s: &mut App| &mut s.filter).build(k).key("filter");
     let visible = s.visible_hosts();
     let files = if s.file_filter.is_some() { "this file".to_string() } else { plural(s.docs.len().max(1), "file") };
     let mut page = ds::Page::new("hosts-page").filter(filter).count(format!("{} in {files}", plural(visible.len(), "host")));

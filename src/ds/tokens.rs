@@ -39,8 +39,9 @@ pub mod size {
     pub const INSPECTOR_MAX: f32 = 400.0;
     /// The list's room in the inspector rule: below sidebar + this + `INSPECTOR_MIN` the
     /// inspector hides. 276 = the 860 minimum window − the 232 default sidebar − `INSPECTOR_MIN`,
-    /// so the minimum window shows all three panes. The rule counts the inspector at its
-    /// narrowest; a wider one (up to `INSPECTOR_MAX`) leaves the list that much less.
+    /// so the minimum window shows all three panes. The inspector shrinks (to `INSPECTOR_MIN` at
+    /// the least) to leave the list this much, so a stored width up to `INSPECTOR_MAX` never
+    /// cramps it.
     pub const LIST_MIN: f32 = 276.0;
     pub const PANE_EDGE: f32 = 16.0;
     pub const PAIR_LABEL: f32 = 120.0;

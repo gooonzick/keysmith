@@ -15,7 +15,7 @@ pub fn page(s: &App, k: &Kit, layer: &mut Vec<El>, reduced: bool) -> (El, Toolba
 }
 
 fn toolbar(k: &Kit) -> Toolbar {
-    Toolbar::new().title("Keys").trailing(
+    Toolbar::new().leading(ds::toolbar_title(k, "Keys")).trailing(
         row()
             .gap(ds::space::S2)
             .center_y()
@@ -47,7 +47,7 @@ fn toolbar(k: &Kit) -> Toolbar {
 }
 
 fn main(s: &App, k: &Kit, reduced: bool) -> El {
-    let filter = ds::filter(&s.filter, "Filter keys by name, comment or fingerprint").label("Filter keys").on_edit(|s: &mut App| &mut s.filter).build(k).key("filter");
+    let filter = ds::filter(&s.filter, "Filter keys").label("Filter keys").on_edit(|s: &mut App| &mut s.filter).build(k).key("filter");
     let visible = s.visible_keys();
     let mut page = ds::Page::new("keys-page").filter(filter).count(plural(visible.len(), "key")).notice(agent(s, k));
     for (i, e) in s.key_errors.iter().enumerate() {

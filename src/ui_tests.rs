@@ -567,6 +567,11 @@ fn inspector_hides_in_a_narrow_window() {
     assert!(h.rt.find("inspector").is_some(), "the minimum window with the default sidebar shows all three panes");
     let (list, _) = h.rt.presented("hosts-page").expect("the list");
     assert!(list[2] > 0.0, "the list keeps some room: {list:?}");
+    // The stored width is 400, but the list keeps LIST_MIN: the inspector shrinks to its minimum.
+    assert_eq!(h.rt.state.inspector.width(), size::INSPECTOR_MAX);
+    let (pane, _) = h.rt.presented("inspector").unwrap();
+    assert_eq!(pane[2], size::INSPECTOR_MIN, "inspector at 860 is {} wide", pane[2]);
+    assert!(list[2] >= size::LIST_MIN, "the list is {} wide at 860", list[2]);
     // A wider sidebar leaves no room: the inspector goes first.
     let widest = h.rt.state.sidebar.max_width();
     h.rt.state.sidebar.set_width(widest);
@@ -578,7 +583,8 @@ fn inspector_hides_in_a_narrow_window() {
     h.settle();
     assert!(h.rt.find("inspector").is_some(), "1200 wide: the inspector is back");
     let (pane, _) = h.rt.presented("inspector").unwrap();
-    assert!(pane[2] >= size::INSPECTOR_MIN && pane[2] <= size::INSPECTOR_MAX, "inspector is {} wide", pane[2]);
+    assert_eq!(pane[2], size::INSPECTOR_MAX, "back to the stored width");
+    assert_eq!(h.rt.state.inspector.width(), size::INSPECTOR_MAX, "the stored width was never touched");
     let s = &h.rt.state.inspector;
     assert_eq!((s.min_width(), s.max_width()), (size::INSPECTOR_MIN, size::INSPECTOR_MAX), "dragging stays within the range");
 }

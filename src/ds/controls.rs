@@ -66,6 +66,13 @@ pub fn filter(edit: &TextEdit, placeholder: &str) -> TextInput {
     input
 }
 
+/// A toolbar title, in the kit's toolbar type, at the leading edge. It truncates before the
+/// toolbar's buttons give way: the kit's centred title does not, so in the narrowest list
+/// (`size::LIST_MIN`) it would sit under the buttons.
+pub fn toolbar_title(k: &Kit, title: impl Into<String>) -> El {
+    text(title.into()).key("title").font(k.ty.ui_medium).color(k.c.text_base).truncate()
+}
+
 /// One entry of an overflow menu.
 pub struct MenuAction<S> {
     pub label: String,
