@@ -148,6 +148,8 @@ pub fn on_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
         return true;
     }
     if ev.is_command('n') {
+        // A shortcut is for speed: the dialog is there at once, without its enter motion.
+        tx.instant();
         match s.page {
             Page::Hosts => s.open_add_host(),
             Page::Keys => s.open_new_key(),
@@ -182,6 +184,7 @@ pub fn on_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
     }
     if !s.filter.focused && ev.key == rune::Key::Enter && s.page == Page::Hosts {
         if let Some(id) = s.selected_host_id() {
+            tx.instant();
             s.open_edit_host(id);
         }
         return true;

@@ -28,6 +28,10 @@ struct Harness {
 
 impl Harness {
     fn new() -> Harness {
+        Harness::sized((1200.0, 760.0))
+    }
+
+    fn sized(size: (f32, f32)) -> Harness {
         let home = tempfile::tempdir().unwrap();
         let root = fs::canonicalize(home.path()).unwrap();
         let paths = Paths::isolated(&root);
@@ -36,7 +40,7 @@ impl Harness {
         keys::generate(&paths, KeyType::Ed25519, "id_work", "work", "").unwrap();
         let app = App::new(paths.clone());
         let env = Env { system_dark: false, scale: 2.0 };
-        let mut rt = Runtime::new(app, crate::ui::view, (1200.0, 760.0), env);
+        let mut rt = Runtime::new(app, crate::ui::view, size, env);
         rt.on_key = Some(crate::ui::on_key);
         rt.frame(0.0);
         Harness { _home: home, paths, rt }
@@ -440,3 +444,74 @@ fn key_actions_stay_inside_the_inspector() {
     assert_eq!(h.rt.state.pass_form.as_ref().map(|f| f.purpose), Some(crate::app::PassPurpose::Comment));
 }
 
+#[test]
+fn dialogs_come_in_two_widths() {
+    let mut h = Harness::new();
+    let panel = |h: &Harness, key: &str| h.rt.presented(key).unwrap_or_else(|| panic!("no {key}")).0;
+    h.click("add-host");
+    let host = panel(&h, "host-form-dialog");
+    h.click("host-cancel");
+    h.click("host-remove");
+    let remove = panel(&h, "confirm-dialog");
+    h.click("confirm-cancel");
+    h.click("nav-keys");
+    h.click("new-key");
+    let new_key = panel(&h, "new-key-dialog");
+    h.click("key-cancel");
+    h.click("key-more");
+    h.click("key-more-popup-item0");
+    let pass = panel(&h, "pass-form-dialog");
+    assert_eq!([host[2], new_key[2]], [560.0, 560.0], "forms are 560 wide");
+    assert_eq!([remove[2], pass[2]], [440.0, 440.0], "confirmations are 440 wide");
+    for p in [remove, new_key, pass] {
+        assert_eq!(p[1], host[1], "every dialog opens at one top: {p:?} vs {host:?}");
+    }
+}
+
+#[test]
+fn host_form_fits_the_minimum_window() {
+    let mut h = Harness::sized((860.0, 540.0));
+    h.click("add-host");
+    for _ in 0..6 {
+        h.rt.state.add_host_pair();
+    }
+    h.rt.invalidate();
+    h.settle();
+    let (dialog, _) = h.rt.presented("host-form-dialog").expect("the dialog");
+    assert!(dialog[1] + dialog[3] <= 540.0, "the dialog ends at {}", dialog[1] + dialog[3]);
+    assert!(h.rt.find("host-save").is_some(), "Add host is there to press");
+    let (save, _) = h.rt.presented("host-save").unwrap();
+    assert!(save[1] >= dialog[1] && save[1] + save[3] <= dialog[1] + dialog[3], "Add host at {save:?} is inside the dialog {dialog:?}");
+    let (body, _) = h.rt.presented("host-form-body").expect("the body");
+    let (options, _) = h.rt.presented("host-form-options").expect("the options card");
+    assert!(options[1] + options[3] > body[1] + body[3], "the body scrolls: options end at {}, body at {}", options[1] + options[3], body[1] + body[3]);
+}
+
+#[test]
+fn fields_sit_above_their_inputs() {
+    let mut h = Harness::new();
+    h.click("add-host");
+    let (dialog, _) = h.rt.presented("host-form-dialog").expect("the dialog");
+    let inside = |r: [f32; 4]| r[0] >= dialog[0] && r[1] >= dialog[1] && r[0] + r[2] <= dialog[0] + dialog[2] && r[1] + r[3] <= dialog[1] + dialog[3];
+    let label = h.rt.elements().into_iter().find(|e| !e.exiting && e.text.as_deref() == Some("Name") && inside(e.rect)).expect("the Name label in the dialog");
+    let (input, _) = h.rt.presented("host-name").expect("the name field");
+    assert!(label.rect[1] + label.rect[3] <= input[1], "the label {:?} sits above the field {input:?}", label.rect);
+    assert_eq!(label.rect[0], input[0], "on one left edge");
+}
+
+#[test]
+fn dialogs_open_at_once_from_the_keyboard() {
+    let mut h = Harness::new();
+    h.settle();
+    h.rt.key(KeyEvent { key: Key::Command('n'), mods: Mods { cmd: true, ..Mods::default() } });
+    h.rt.frame(1.0 / 60.0);
+    assert!(h.rt.state.host_form.is_some());
+    assert_eq!(h.rt.presented("host-form-scrim").map(|p| p.1), Some(1.0), "⌘N shows the dialog at once");
+    h.click("host-cancel");
+    let (x, y) = h.rt.find("add-host").unwrap();
+    h.rt.pointer_down(x, y);
+    h.rt.pointer_up(x, y);
+    h.rt.frame(1.0 / 60.0);
+    let scrim = h.rt.presented("host-form-scrim").expect("the scrim").1;
+    assert!(scrim < 1.0, "a click lets the dialog come in: {scrim}");
+}
