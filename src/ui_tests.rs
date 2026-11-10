@@ -239,10 +239,14 @@ fn a_dialogs_dropdown_opens_under_its_field() {
 fn copy_button_shows_a_check_then_reverts() {
     let mut h = Harness::new();
     h.rt.poll = Some(crate::poll);
+    let name = |h: &Harness| h.rt.elements().into_iter().find(|e| e.key.as_deref() == Some("host-copy")).and_then(|e| e.label);
+    assert_eq!(name(&h).as_deref(), Some("Copy"));
     h.click("host-copy");
-    assert!(h.rt.state.copied_at.is_some(), "the button shows the check");
+    assert!(h.rt.state.copied_at.is_some());
+    assert_eq!(name(&h).as_deref(), Some("Copied"), "the button shows the check");
     for _ in 0..90 {
         h.rt.frame(1.0 / 60.0);
     }
-    assert!(h.rt.state.copied_at.is_none(), "the check goes after a second or so");
+    assert!(h.rt.state.copied_at.is_none());
+    assert_eq!(name(&h).as_deref(), Some("Copy"), "the check goes after a second or so");
 }

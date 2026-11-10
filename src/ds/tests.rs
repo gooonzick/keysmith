@@ -431,11 +431,21 @@ mod motion_and_gallery {
         assert_eq!(rt.presented("inspector-obj0").map(|p| p.1), Some(1.0), "the first body shows at once");
         rt.update(|s, _| *s = 1);
         rt.frame(1.0 / 60.0);
-        let fading = rt.presented("inspector-obj1").expect("the new body").1;
-        assert!(fading < 1.0, "the new body is at {fading} straight away");
+        let old = |rt: &Runtime<u32>| rt.elements().into_iter().find(|e| e.key.as_deref() == Some("inspector-obj0"));
+        // The old body fades out on the same `swap` spring the new one fades in on, so the two
+        // opacities always add up to one.
+        for frame in 0..6 {
+            let new = rt.presented("inspector-obj1").expect("the new body").1;
+            let leaving = old(&rt).unwrap_or_else(|| panic!("the old body is gone at frame {frame}"));
+            assert!(leaving.exiting, "the old body is not exiting");
+            assert!(new < 1.0 && leaving.opacity > 0.0, "frame {frame}: new {new}, old {}", leaving.opacity);
+            assert!((new + leaving.opacity - 1.0).abs() < 0.01, "frame {frame}: new {new} + old {} is not 1", leaving.opacity);
+            rt.frame(1.0 / 60.0);
+        }
         for _ in 0..30 {
             rt.frame(1.0 / 60.0);
         }
         assert_eq!(rt.presented("inspector-obj1").map(|p| p.1), Some(1.0));
+        assert!(old(&rt).is_none(), "the old body is gone");
     }
 }

@@ -3,7 +3,7 @@
 
 use std::rc::Rc;
 
-use rune::{El, Icon, TextEdit};
+use rune::{El, Icon, TextEdit, text};
 use rune_kit::{Button, ButtonVariant, IconButton, IconButtonVariant, Kit, Menu, MenuItem, TextInput, glyphs};
 
 use super::Place;
@@ -40,9 +40,14 @@ pub fn quiet(label: impl Into<String>, place: Place) -> Button {
 }
 
 /// The ordinary button with a copy icon, which becomes a check while `copied` (the app clears it
-/// after `motion::COPY_CONFIRM_SECS`).
+/// after `motion::COPY_CONFIRM_SECS`). While copied its accessible name is "Copied"; the visible
+/// label stays.
 pub fn copy_button(label: impl Into<String>, place: Place, copied: bool) -> Button {
-    button(label, place).icon(if copied { &glyphs::CHECK } else { &glyphs::COPY })
+    if !copied {
+        return button(label, place).icon(&glyphs::COPY);
+    }
+    let label = label.into();
+    button("Copied", place).icon(&glyphs::CHECK).label_with(move |font, ink| text(label).font(font).color(ink))
 }
 
 /// An icon-only button; `label` is its accessible name and tooltip.

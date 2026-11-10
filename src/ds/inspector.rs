@@ -110,7 +110,7 @@ impl Inspector {
         }
         // Opacity only, so it stays under reduced motion.
         if let Some(id) = self.subject {
-            pane = pane.key(format!("inspector-{id}")).transition(Transition::opacity().springs(SpringPair::new(motion::swap(), motion::exit())));
+            pane = pane.key(format!("inspector-{id}")).transition(Transition::opacity().springs(SpringPair::new(motion::swap(), motion::swap())));
         }
         col().key("inspector").w_full().padding(size::PANE_EDGE).child(pane)
     }
