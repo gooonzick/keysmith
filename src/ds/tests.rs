@@ -141,3 +141,133 @@ mod blocks {
         assert!(b[0] + b[2] <= W, "button ends at {}", b[0] + b[2]);
     }
 }
+
+mod skeletons {
+    use super::*;
+    use rune::{Cx, El, Env, Runtime, col};
+    use rune_kit::glyphs;
+
+    fn env() -> Env {
+        Env { system_dark: false, scale: 1.0 }
+    }
+
+    fn page_view(_: &(), _: &mut Cx<()>) -> El {
+        let k = Kit::neutral(false);
+        let edit = rune::TextEdit::new("");
+        Page::new("page")
+            .filter(filter(&edit, "Filter").build(&k).key("filter"))
+            .count("1 host")
+            .notice(Notice::new(Tone::Warn, "Careful").key("notice").build(&k).key("notice-box"))
+            .rows([ListRow::new("row", "work").build(&k, |_: &mut ()| {})])
+            .build(&k)
+    }
+
+    #[test]
+    fn page_has_one_content_edge() {
+        let mut rt = Runtime::new((), page_view, (400.0, 600.0), env());
+        rt.frame(0.0);
+        for key in ["filter", "count", "notice-box", "row-name"] {
+            let x = rt.presented(key).unwrap_or_else(|| panic!("no {key}")).0[0];
+            assert!((x - 16.0).abs() <= 0.5, "{key} starts at {x}");
+        }
+    }
+
+    fn rows_view(_: &(), _: &mut Cx<()>) -> El {
+        let k = Kit::neutral(false);
+        col()
+            .w_full()
+            .child(ListRow::new("with", "a").meta("b").build(&k, |_: &mut ()| {}))
+            .child(ListRow::new("without", "a").icon(&glyphs::SEARCH).build(&k, |_: &mut ()| {}))
+    }
+
+    #[test]
+    fn list_row_heights() {
+        let mut rt = Runtime::new((), rows_view, (400.0, 600.0), env());
+        rt.frame(0.0);
+        assert_eq!(rt.presented("with").unwrap().0[3], 44.0);
+        assert_eq!(rt.presented("without").unwrap().0[3], 32.0);
+    }
+
+    fn crowded(_: &(), _: &mut Cx<()>) -> El {
+        let k = Kit::neutral(false);
+        let mut page = Page::new("page").count("40 hosts");
+        for i in 0..6 {
+            page = page.notice(Notice::new(Tone::Info, format!("notice {i} {}", "word ".repeat(12))).key(format!("n{i}")).build(&k));
+        }
+        page.rows((0..40).map(|i| ListRow::new(format!("row{i}"), format!("host {i}")).build(&k, |_: &mut ()| {}))).build(&k)
+    }
+
+    #[test]
+    fn many_notices_leave_the_list_scrollable() {
+        let mut rt = Runtime::new((), crowded, (400.0, 600.0), env());
+        rt.frame(0.0);
+        let last = rt.presented("n5-text").unwrap().0;
+        assert!(last[1] + last[3] <= 600.0, "last notice ends at {}", last[1] + last[3]);
+        assert!(rt.find("row0").is_some(), "first row is not on screen");
+        let page = rt.presented("page").unwrap().0;
+        assert!(page[3] <= 600.0, "page is {} high", page[3]);
+        let list = rt.presented("list").unwrap().0;
+        assert!(list[3] > 100.0, "list is only {} high", list[3]);
+    }
+
+    #[derive(Default)]
+    struct Menus {
+        open: bool,
+        ran: u32,
+    }
+
+    fn actions_view(s: &Menus, _: &mut Cx<Menus>) -> El {
+        let k = Kit::neutral(false);
+        let mut layer = Vec::new();
+        let more = overflow(
+            &k,
+            "more",
+            s.open,
+            |s: &mut Menus| s.open = !s.open,
+            |s: &mut Menus| s.open = false,
+            vec![MenuAction { label: "Copy".into(), disabled: false, run: Box::new(|s: &mut Menus| s.ran += 1) }],
+            &mut layer,
+        );
+        let pane = Inspector::new()
+            .actions(
+                vec![
+                    button("One", Place::Inspector).build(&k).key("b1"),
+                    button("Two", Place::Inspector).build(&k).key("b2"),
+                    button("Three", Place::Inspector).build(&k).key("b3"),
+                    more,
+                ],
+                Some(danger("Delete", Place::Inspector).build(&k).key("del")),
+            )
+            .build(&k);
+        rune_kit::root(col().w_full().h_full().child(pane), layer)
+    }
+
+    fn click(rt: &mut Runtime<Menus>, key: &str) {
+        let (x, y) = rt.find(key).unwrap_or_else(|| panic!("no {key}"));
+        rt.pointer_move(x, y);
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        rt.frame(0.0);
+    }
+
+    #[test]
+    fn inspector_actions_stay_on_one_row() {
+        let mut rt = Runtime::new(Menus::default(), actions_view, (320.0, 400.0), env());
+        rt.frame(0.0);
+        let ys: Vec<f32> = ["b1", "b2", "b3", "more-button", "del"].iter().map(|k| rt.find(k).unwrap_or_else(|| panic!("no {k}")).1).collect();
+        assert!(ys.iter().all(|y| (y - ys[0]).abs() < 0.5), "centres {ys:?}");
+        let del = rt.presented("del").unwrap().0;
+        assert!((del[0] + del[2] - (320.0 - 16.0)).abs() <= 0.5, "delete ends at {}", del[0] + del[2]);
+    }
+
+    #[test]
+    fn overflow_opens_and_runs() {
+        let mut rt = Runtime::new(Menus::default(), actions_view, (320.0, 400.0), env());
+        rt.frame(0.0);
+        click(&mut rt, "more-button");
+        assert!(rt.state.open, "trigger did not toggle");
+        click(&mut rt, "more-item0");
+        assert_eq!(rt.state.ran, 1);
+        assert!(!rt.state.open, "choosing an item closes the menu");
+    }
+}

@@ -3,6 +3,9 @@
 #![allow(dead_code, unused_imports)]
 
 mod card;
+mod controls;
+mod inspector;
+mod page;
 mod status;
 pub mod text;
 mod tokens;
@@ -10,6 +13,9 @@ mod tokens;
 mod tests;
 
 pub use card::*;
+pub use controls::*;
+pub use inspector::*;
+pub use page::*;
 pub use status::*;
 pub use tokens::*;
 
