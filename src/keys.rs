@@ -548,4 +548,4 @@ pub fn trash(paths: &Paths, key: &Key) -> Result<Vec<(PathBuf, PathBuf)>, String
 
 #[cfg(test)]
 #[path = "keys_tests.rs"]
-mod tests;
+pub(crate) mod tests;

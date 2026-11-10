@@ -77,6 +77,8 @@ pub struct App {
     pub key_errors: Vec<String>,
     pub agent: Agent,
     pub selected_key: Option<String>,
+    /// The selected key's "…" menu (Write .pub file, Show in Finder) is open.
+    pub key_menu: bool,
     pub new_key: Option<NewKeyForm>,
     pub pass_form: Option<PassForm>,
 
@@ -120,6 +122,7 @@ impl App {
             key_errors: Vec::new(),
             agent: Agent::Running(Vec::new()),
             selected_key: None,
+            key_menu: false,
             new_key: None,
             pass_form: None,
             confirm: None,
@@ -161,6 +164,7 @@ impl App {
         }
         if self.selected_key.as_ref().is_some_and(|n| self.key(n).is_none()) {
             self.selected_key = None;
+            self.key_menu = false;
         }
         if self.file_filter.as_ref().is_some_and(|f| !self.docs.iter().any(|d| &d.path == f)) {
             self.file_filter = None;
@@ -370,10 +374,12 @@ impl App {
         }
     }
 
-    /// Whether a dialog or menu is open: keys then belong to it. The host menu counts only
-    /// while it can show: on the hosts page, with a host selected.
+    /// Whether a dialog or menu is open: keys then belong to it. A "…" menu counts only while
+    /// it can show: on its page, with a host or key selected.
     pub fn modal(&self) -> bool {
-        (self.host_menu && self.page == Page::Hosts && self.selected_host_id().is_some()) || self.host_form.is_some() || self.new_key.is_some() || self.pass_form.is_some() || self.confirm.is_some()
+        let host_menu = self.host_menu && self.page == Page::Hosts && self.selected_host_id().is_some();
+        let key_menu = self.key_menu && self.page == Page::Keys && self.selected_key.is_some();
+        host_menu || key_menu || self.host_form.is_some() || self.new_key.is_some() || self.pass_form.is_some() || self.confirm.is_some()
     }
 }
 

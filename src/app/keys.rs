@@ -265,7 +265,10 @@ impl App {
     }
 
     pub fn select_key(&mut self, name: &str) {
-        self.selected_key = Some(name.to_string());
+        if self.selected_key.as_deref() != Some(name) {
+            self.selected_key = Some(name.to_string());
+            self.key_menu = false;
+        }
         if !self.inspector.is_open() {
             self.inspector.toggle();
         }

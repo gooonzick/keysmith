@@ -11,10 +11,10 @@ fn find<'a>(keys: &'a [Key], name: &str) -> &'a Key {
 }
 
 /// An ssh-agent on the isolated socket, killed when dropped.
-struct TestAgent(std::process::Child);
+pub(crate) struct TestAgent(std::process::Child);
 
 impl TestAgent {
-    fn start(paths: &Paths) -> TestAgent {
+    pub(crate) fn start(paths: &Paths) -> TestAgent {
         let sock = paths.agent_sock.clone().unwrap();
         let child = Command::new("ssh-agent").arg("-D").arg("-a").arg(&sock).stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
         for _ in 0..100 {

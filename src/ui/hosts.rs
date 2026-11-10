@@ -9,7 +9,7 @@ use rune_kit::{Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant
 
 use super::{PLUS, PULSE, REFRESH, SERVER, TERMINAL, host_key, plural};
 use crate::app::{App, HostRef};
-use crate::ds::{self, Card, Inspector, ListRow, MenuAction, Notice, Place, Tone, item_row, pair_row_with, plain_row, stacked_row_with, text};
+use crate::ds::{self, Card, Inspector, ListRow, MenuAction, Notice, Place, Tone, item_row, plain_row, text, value_row};
 use crate::paths::Paths;
 use crate::sshconfig::{Kind, Section, canonical};
 
@@ -279,13 +279,6 @@ fn options(sec: &Section, k: &Kit) -> Option<El> {
 fn option_row(k: &Kit, key: &str, value: String) -> El {
     let label = text::code(k, key.to_string()).truncate().help(key.to_string());
     value_row(label, text::code(k, value.clone()), &value)
-}
-
-/// A label and a value on one line; a value (`text`) too long for the right-hand column goes
-/// under the label at full width, where it wraps.
-fn value_row(label: El, value: El, text: &str) -> El {
-    const LONG: usize = 28;
-    if text.chars().count() > LONG { stacked_row_with(label, value) } else { pair_row_with(label, value) }
 }
 
 /// What `ssh -G` makes of the host. By default only what the section doesn't set itself (what it

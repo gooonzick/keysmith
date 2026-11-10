@@ -351,3 +351,85 @@ fn a_host_menu_left_open_doesnt_swallow_keys() {
     h.settle();
     assert_eq!(h.rt.state.page, Page::Keys, "⌘2 still works");
 }
+
+#[test]
+fn keys_page_matches_hosts_page_skeleton() {
+    let mut h = Harness::new();
+    h.settle();
+    let (filter_hosts, _) = h.rt.presented("filter").expect("the hosts filter");
+    let (name_hosts, _) = h.rt.presented("host-0-0-name").expect("the first host's name");
+    h.click("nav-keys");
+    let (filter_keys, _) = h.rt.presented("filter").expect("the keys filter");
+    let (name_keys, _) = h.rt.presented("key-id_work-name").expect("the first key's name");
+    assert_eq!(filter_keys, filter_hosts, "one filter in one place");
+    assert_eq!(name_keys[0], name_hosts[0], "row names on one edge");
+}
+
+#[test]
+fn agent_notice_keeps_remove_all() {
+    let mut h = Harness::new();
+    let _agent = crate::keys::tests::TestAgent::start(&h.paths);
+    let private = h.rt.state.key("id_work").and_then(|k| k.private.clone()).unwrap();
+    keys::agent_add(&h.paths, &private, "", false).unwrap();
+    h.rt.state.rescan();
+    h.click("nav-keys");
+    let texts: Vec<String> = h.rt.elements().into_iter().filter_map(|e| e.text).collect();
+    assert!(texts.iter().any(|t| t == "ssh-agent holds 1 key"), "the agent's notice: {texts:?}");
+    assert!(h.rt.find("agent-clear").is_some(), "Remove all stays");
+    h.click("agent-clear");
+    assert_eq!(keys::agent(&h.paths), keys::Agent::Running(Vec::new()));
+}
+
+#[test]
+fn key_more_menu_reveals_and_writes_pub() {
+    let mut h = Harness::new();
+    fs::remove_file(h.ssh("id_work.pub")).unwrap();
+    h.rt.state.rescan();
+    h.click("nav-keys");
+    h.click("key-more");
+    assert!(h.rt.state.key_menu && h.rt.state.modal(), "the open menu takes the keys");
+    let label = |h: &Harness, key: &str| h.rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key)).and_then(|e| e.label);
+    assert_eq!(label(&h, "key-more-popup-item0").as_deref(), Some("Write .pub file"));
+    assert!(label(&h, "key-more-popup-item1").is_some(), "Show in Finder");
+    h.click("key-more-popup-item0");
+    assert!(h.ssh("id_work.pub").exists(), "the .pub is back");
+    assert!(!h.rt.state.key_menu, "choosing closes the menu");
+    // The key goes away on disk while its menu is open: the menu goes with it.
+    h.click("key-more");
+    assert!(h.rt.state.key_menu);
+    fs::remove_file(h.ssh("id_work")).unwrap();
+    fs::remove_file(h.ssh("id_work.pub")).unwrap();
+    h.rt.state.rescan();
+    h.rt.invalidate();
+    h.settle();
+    assert!(h.rt.state.selected_key.is_none());
+    assert!(!h.rt.state.modal(), "no menu shows, so none holds the keys");
+}
+
+#[test]
+fn unused_key_says_so() {
+    let mut h = Harness::new();
+    keys::generate(&h.paths, KeyType::Ed25519, "id_spare", "spare", "").unwrap();
+    h.rt.state.rescan();
+    h.click("nav-keys");
+    h.click("key-id_spare");
+    let texts: Vec<String> = h.rt.elements().into_iter().filter_map(|e| e.text).collect();
+    assert!(texts.iter().any(|t| t.contains("No host uses this key.")), "the hint row: {texts:?}");
+    assert!(h.rt.find("card-used-by").is_some(), "the card stays, with the hint in it");
+}
+
+#[test]
+fn key_actions_stay_inside_the_inspector() {
+    let mut h = Harness::new();
+    let _agent = crate::keys::tests::TestAgent::start(&h.paths);
+    h.rt.state.rescan();
+    h.click("nav-keys");
+    let (pane, _) = h.rt.presented("inspector").expect("the inspector");
+    let (trash, _) = h.rt.presented("key-trash").expect("Move to Trash");
+    for key in ["key-agent-add", "key-passphrase", "key-comment", "key-more", "key-trash"] {
+        let (r, _) = h.rt.presented(key).unwrap_or_else(|| panic!("{key} is shown"));
+        assert!(r[0] >= pane[0] && r[0] + r[2] <= pane[0] + pane[2], "{key} at {r:?} is inside the inspector {pane:?}");
+    }
+    let (first, _) = h.rt.presented("key-agent-add").unwrap();
+    assert_eq!(trash[1], first[1], "Move to Trash stays on the first line");
+}

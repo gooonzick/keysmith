@@ -93,6 +93,13 @@ pub fn stacked_row_with(label: El, value: El) -> El {
     col().w_full().gap(space::S1).child(label).child(value)
 }
 
+/// A label and a value on one line; a value (`text`) too long for the right-hand column goes
+/// under the label at full width, where it wraps.
+pub fn value_row(label: El, value: El, text: &str) -> El {
+    const LONG: usize = 28;
+    if text.chars().count() > LONG { stacked_row_with(label, value) } else { pair_row_with(label, value) }
+}
+
 /// A name with an optional hint beneath it and an optional control on the right.
 pub fn item_row(_k: &Kit, name: El, hint: Option<El>, trailing: Option<El>) -> El {
     let mut body = col().grow(1.0).min_w(0.0).child(name);

@@ -5,7 +5,7 @@ mod dialogs;
 mod hosts;
 mod keys;
 
-use rune::{Chrome, Color, Cx, El, Icon, KeyEvent, ScrollSpec, Spring, Tx, col, el, row, text};
+use rune::{Chrome, Cx, El, Icon, KeyEvent, ScrollSpec, Spring, Tx, col};
 use rune_kit::shell::{self, PaneMotion, Sidebar, SidebarRow, SidebarSection, SidebarToggle, SplitView};
 use rune_kit::{ControlSize, Kit, Toast, ToastRegion, glyphs};
 
@@ -45,7 +45,7 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
     }
     let (main, toolbar, inspector) = match s.page {
         Page::Hosts => hosts::page(s, &k, &mut layer, cx.is_reduced_motion()),
-        Page::Keys => keys::page(s, &k, &mut layer),
+        Page::Keys => keys::page(s, &k, &mut layer, cx.is_reduced_motion()),
     };
     dialogs::host_form(s, &k, &mut layer);
     dialogs::new_key(s, &k, &mut layer);
@@ -129,51 +129,6 @@ fn sidebar(s: &App, k: &Kit) -> El {
 /// A pane's content in a vertical scroll view that fills the pane.
 pub fn scroll_pane(key: &str, content: El) -> El {
     col().key(key.to_string()).w_full().h_full().min_h(0.0).scroll(ScrollSpec { stick_bottom: false }).child(content)
-}
-
-/// A small heading over a group.
-pub fn heading(label: &str, k: &Kit) -> El {
-    text(label.to_string()).font(k.ty.small_medium).color(k.c.text_faint)
-}
-
-pub fn dot(color: Color) -> El {
-    el().size(7.0, 7.0).radius(3.5).fill(color)
-}
-
-pub fn empty(title: &str, detail: &str, k: &Kit) -> El {
-    col()
-        .w_full()
-        .py(48.0)
-        .gap(6.0)
-        .items_center()
-        .child(text(title.to_string()).font(k.ty.ui_medium).color(k.c.text_muted))
-        .child(text(detail.to_string()).font(k.ty.small).color(k.c.text_faint).wrap())
-}
-
-/// A small outlined label, with a coloured dot when it signals something.
-pub fn tag(label: &str, color: Option<Color>, help: &str, k: &Kit) -> El {
-    let mut c = row().h(20.0).px(6.0).gap(4.0).center_y().radius(k.radius.sm).border(1.0, k.c.border_weak).help(help.to_string());
-    if let Some(color) = color {
-        c = c.child(dot(color));
-    }
-    c.child(text(label.to_string()).font(k.ty.small).color(k.c.text_muted))
-}
-
-pub fn field(label: &str, value: El, k: &Kit) -> El {
-    col().gap(3.0).w_full().child(heading(label, k)).child(value)
-}
-
-pub fn mono(t: impl Into<String>, k: &Kit) -> El {
-    text(t.into()).font(k.ty.mono).color(k.c.text_muted).wrap_anywhere().selectable(true).selection_color(k.selection())
-}
-
-pub fn inspector_body() -> El {
-    col().key("inspector").w_full().padding(16.0).gap(16.0)
-}
-
-/// A quiet line of small text after a coloured dot.
-pub fn notice_line(color: Color, line: String, k: &Kit) -> El {
-    row().w_full().gap(8.0).center_y().child(dot(color)).child(text(line).font(k.ty.small).color(k.c.text_muted).grow(1.0).min_w(0.0).wrap())
 }
 
 pub fn plural(n: usize, one: &str) -> String {

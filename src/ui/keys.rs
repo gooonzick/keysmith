@@ -1,16 +1,17 @@
 //! The keys page: the keys in `~/.ssh` with the agent above them, and the inspector with one
 //! key's fingerprint, public half, the hosts that use it and what can be done to it.
 
-use rune::{El, Tx, col, row, text};
+use rune::{El, Tx, col, row};
 use rune_kit::shell::Toolbar;
-use rune_kit::{Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant, Kit, TextInput, glyphs};
+use rune_kit::{Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant, Kit};
 
-use super::{IMPORT, PLUS, REFRESH, dot, empty, field, heading, inspector_body, mono, notice_line, plural, scroll_pane, tag};
+use super::{IMPORT, KEY, PLUS, REFRESH, plural};
 use crate::app::{App, PassPurpose};
+use crate::ds::{self, Card, Inspector, ListRow, MenuAction, Notice, Place, Tone, item_row, stacked_row, text, value_row};
 use crate::keys::{Agent, Key};
 
-pub fn page(s: &App, k: &Kit, _layer: &mut Vec<El>) -> (El, Toolbar, El) {
-    (main(s, k), toolbar(k), inspector(s, k))
+pub fn page(s: &App, k: &Kit, layer: &mut Vec<El>, reduced: bool) -> (El, Toolbar, El) {
+    (main(s, k, reduced), toolbar(k), inspector(s, k, layer, reduced))
 }
 
 fn toolbar(k: &Kit) -> Toolbar {
@@ -58,93 +59,54 @@ fn toolbar(k: &Kit) -> Toolbar {
     )
 }
 
+fn main(s: &App, k: &Kit, reduced: bool) -> El {
+    let filter = ds::filter(&s.filter, "Filter keys by name, comment or fingerprint").label("Filter keys").on_edit(|s: &mut App| &mut s.filter).build(k).key("filter");
+    let visible = s.visible_keys();
+    let mut page = ds::Page::new("keys-page").filter(filter).count(plural(visible.len(), "key")).notice(agent(s, k));
+    for (i, e) in s.key_errors.iter().enumerate() {
+        page = page.notice(Notice::new(Tone::Warn, e.clone()).key(format!("key-error-{i}")).build(k));
+    }
+    if s.keys.is_empty() {
+        page = page.empty(ds::empty(k, "No keys in ~/.ssh", "Make one with New key, or import one you have."));
+    } else if visible.is_empty() {
+        page = page.empty(ds::empty(k, "Nothing to show", "Try another word."));
+    }
+    page.rows(visible.iter().map(|&i| key_row(s, &s.keys[i], k, reduced))).build(k)
+}
+
 /// The agent's state, and keys it holds that aren't in `~/.ssh`.
-fn agent_bar(s: &App, k: &Kit) -> El {
-    let bar = row().key("agent-bar").w_full().px(12.0).py(10.0).gap(10.0).center_y().radius(k.radius.md).fill(k.c.layer_01);
-    match &s.agent {
-        Agent::Down(why) => bar.child(dot(k.c.warning.icon)).child(
-            col()
-                .grow(1.0)
-                .min_w(0.0)
-                .gap(2.0)
-                .child(text("ssh-agent isn't running").font(k.ty.ui_medium).color(k.c.text_base))
-                .child(text(why.clone()).font(k.ty.small).color(k.c.text_faint).wrap()),
-        ),
+fn agent(s: &App, k: &Kit) -> El {
+    let notice = match &s.agent {
+        Agent::Down(why) => Notice::new(Tone::Warn, "ssh-agent isn't running").detail(why.clone()),
+        Agent::Running(loaded) if loaded.is_empty() => Notice::new(Tone::Ok, "ssh-agent holds no keys").detail("ssh asks for passphrases every time."),
         Agent::Running(loaded) => {
             let foreign = loaded.iter().filter(|(fp, _)| !s.keys.iter().any(|k| k.fingerprint.as_deref() == Some(fp))).count();
-            let mut detail = if loaded.is_empty() { "No keys loaded. ssh asks for passphrases every time.".to_string() } else { format!("{} loaded", plural(loaded.len(), "key")) };
+            let mut n = Notice::new(Tone::Ok, format!("ssh-agent holds {}", plural(loaded.len(), "key")));
             if foreign > 0 {
-                detail.push_str(&format!(", {foreign} from outside ~/.ssh"));
+                n = n.detail(format!("{foreign} from outside ~/.ssh"));
             }
-            let mut bar = bar.child(dot(k.c.success.icon)).child(
-                col()
-                    .grow(1.0)
-                    .min_w(0.0)
-                    .gap(2.0)
-                    .child(text("ssh-agent").font(k.ty.ui_medium).color(k.c.text_base))
-                    .child(text(detail).font(k.ty.small).color(k.c.text_faint).wrap()),
-            );
-            if !loaded.is_empty() {
-                bar = bar.child(
-                    Button::new("Remove all")
-                        .variant(ButtonVariant::Outline)
-                        .control_size(ControlSize::Small)
-                        .help("Unload every key from the agent (ssh-add -D)")
-                        .on_press(|s: &mut App| s.clear_agent())
-                        .build(k)
-                        .key("agent-clear"),
-                );
-            }
-            bar
+            n.action(ds::button("Remove all", Place::List).help("Unload every key from the agent (ssh-add -D)").on_press(|s: &mut App| s.clear_agent()).build(k).key("agent-clear"))
         }
-    }
+    };
+    notice.key("agent").build(k)
 }
 
-fn main(s: &App, k: &Kit) -> El {
-    let mut filter = TextInput::new(&s.filter).placeholder("Filter keys by name, comment or fingerprint").leading_icon(&glyphs::SEARCH);
-    if !s.filter.text.is_empty() {
-        filter = filter.clear_button();
-    }
-    let filter = filter
-        .label("Filter keys")
-        .width(None)
-        .on_edit(|s: &mut App| &mut s.filter)
-        .build(k)
-        .key("filter");
-    let visible = s.visible_keys();
-    let mut list = col().key("keys").w_full().gap(2.0);
-    if s.keys.is_empty() {
-        list = list.child(empty("No keys in ~/.ssh", "Make one with New key, or import one you have.", k));
-    } else if visible.is_empty() {
-        list = list.child(empty("Nothing to show", "Try another word.", k));
-    }
-    for &i in &visible {
-        list = list.child(key_row(s, &s.keys[i], k));
-    }
-    let mut page = col().key("keys-page").w_full().h_full().min_h(0.0).padding(16.0).gap(10.0).child(filter).child(agent_bar(s, k));
-    for e in &s.key_errors {
-        page = page.child(notice_line(k.c.warning.icon, e.clone(), k));
-    }
-    page.child(scroll_pane("keys-scroll", list).grow(1.0))
-}
-
-fn key_row(s: &App, key: &Key, k: &Kit) -> El {
-    let selected = s.selected_key.as_deref() == Some(key.name.as_str());
-    let mut tags = row().key("tags").gap(4.0).center_y();
+fn key_row(s: &App, key: &Key, k: &Kit, reduced: bool) -> El {
+    let mut tags = Vec::new();
     if s.in_agent(key) {
-        tags = tags.child(tag("in agent", Some(k.c.success.icon), "Loaded in ssh-agent", k));
+        tags.push(ds::tag(k, "in agent", Some(Tone::Ok), "Loaded in ssh-agent"));
     }
     match (key.private.is_some(), key.encrypted) {
-        (false, _) => tags = tags.child(tag("public only", None, "Only the .pub is here: a hardware key, or a copy", k)),
-        (true, Some(true)) => tags = tags.child(tag("passphrase", None, "Protected by a passphrase", k)),
-        (true, Some(false)) => tags = tags.child(tag("no passphrase", Some(k.c.warning.icon), "Anyone with the file can use it", k)),
+        (false, _) => tags.push(ds::tag(k, "public only", None, "Only the .pub is here: a hardware key, or a copy")),
+        (true, Some(true)) => tags.push(ds::tag(k, "passphrase", None, "Protected by a passphrase")),
+        (true, Some(false)) => tags.push(ds::tag(k, "no passphrase", Some(Tone::Warn), "Anyone with the file can use it")),
         (true, None) => {}
     }
     if let Some(m) = key.loose_mode {
-        tags = tags.child(tag(&format!("{m:o}"), Some(k.c.danger.icon), "Others can read it; ssh refuses such keys", k));
+        tags.push(ds::tag(k, format!("{m:o}"), Some(Tone::Bad), "Others can read it; ssh refuses such keys"));
     }
     let used = s.hosts_using(key).len();
-    let subtitle = [Some(match key.bits {
+    let meta = [Some(match key.bits {
         Some(b) if key.kind == "RSA" => format!("RSA {b}"),
         _ => key.kind.clone(),
     }), (!key.comment.is_empty()).then(|| key.comment.clone()), (used > 0).then(|| plural(used, "host"))]
@@ -153,102 +115,25 @@ fn key_row(s: &App, key: &Key, k: &Kit) -> El {
     .collect::<Vec<_>>()
     .join(" · ");
     let name = key.name.clone();
-    let info = col()
-        .gap(2.0)
-        .grow(1.0)
-        .min_w(120.0)
-        .child(text(key.name.clone()).font(k.ty.ui_medium).color(k.c.text_base).truncate())
-        .child(text(subtitle).font(k.ty.small).color(k.c.text_muted).truncate());
-    let r = row()
-        .key(format!("key-{}", key.name))
-        .role("button")
-        .label(key.name.clone())
-        .focusable(true)
-        .w_full()
-        .px(12.0)
-        .py(8.0)
-        .gap(12.0)
-        .center_y()
-        .radius(k.radius.md)
-        .on_press(move |s: &mut App| s.select_key(&name))
-        .child(rune::icon(&super::KEY, 16.0).color(k.c.icon_muted))
-        .child(info)
-        .child(tags);
-    if selected { r.fill(k.c.layer_02) } else { r.hover(k.c.hover) }
+    let selected = s.selected_key.as_deref() == Some(key.name.as_str());
+    ListRow::new(format!("key-{}", key.name), key.name.clone()).icon(&KEY).meta(meta).tags(tags).selected(selected).reduced(reduced).build(k, move |s: &mut App| s.select_key(&name))
 }
 
-fn small(label: &str) -> Button {
-    Button::new(label).variant(ButtonVariant::Outline).control_size(ControlSize::Small)
-}
-
-fn inspector(s: &App, k: &Kit) -> El {
+fn inspector(s: &App, k: &Kit, layer: &mut Vec<El>, reduced: bool) -> El {
     let Some(key) = s.selected_key.as_deref().and_then(|n| s.key(n)) else {
-        return inspector_body().child(empty("No key selected", "Click a key to see its fingerprint, public key and hosts.", k));
+        return col().key("inspector").w_full().padding(ds::size::PANE_EDGE).child(ds::empty(k, "No key selected", "Click a key to see its fingerprint, public key and hosts."));
     };
-    let mut body = inspector_body().child(
-        col()
-            .w_full()
-            .gap(4.0)
-            .child(text(key.name.clone()).font(k.ty.body_medium).color(k.c.text_base).wrap_anywhere())
-            .child(text(describe(key)).font(k.ty.small).color(k.c.text_faint).wrap()),
-    );
+    let (left, right) = actions(s, key, k, layer);
+    let mut ins = Inspector::new().subject(format!("key-{}", key.name)).title(key.name.clone()).meta(describe(key)).actions(left, Some(right));
     if let Some(m) = key.loose_mode {
         let name = key.name.clone();
-        body = body.child(
-            row()
-                .key("loose-warning")
-                .w_full()
-                .gap(8.0)
-                .center_y()
-                .child(notice_line(k.c.danger.icon, format!("Permissions are {m:o}: others can read this key, and ssh refuses to use it."), k).grow(1.0).min_w(0.0))
-                .child(small("Fix").on_press(move |s: &mut App| s.fix_permissions(&name)).build(k).key("key-fix")),
-        );
+        let fix = ds::button("Fix", Place::Inspector).help("Make it readable only by you (600)").on_press(move |s: &mut App| s.fix_permissions(&name)).build(k).key("key-fix");
+        ins = ins.notice(Notice::new(Tone::Bad, "Others can read this key").detail(format!("Its permissions are {m:o}, and ssh refuses to use it.")).action(fix).key("loose-warning").build(k));
     }
-    body = body.child(actions(s, key, k));
-    if let Some(text_) = &key.public_text {
-        let copy = text_.clone();
-        let copy_btn = small("Copy public key").icon(&glyphs::COPY).help("Paste it into GitHub, GitLab or a server's authorized_keys").on_press_tx(move |s: &mut App, tx: &mut Tx| {
-            tx.copy(copy.clone());
-            s.notify("Copied the public key", "", false);
-        });
-        body = body.child(
-            col()
-                .key("public-key")
-                .w_full()
-                .gap(6.0)
-                .child(row().w_full().center_y().child(heading("Public key", k).grow(1.0)).child(copy_btn.build(k).key("key-copy")))
-                .child(col().w_full().padding(10.0).radius(k.radius.md).fill(k.c.layer_01).child(mono(text_.clone(), k))),
-        );
-    }
-    let mut facts = col().key("key-facts").w_full().gap(12.0);
-    if let Some(fp) = &key.fingerprint {
-        facts = facts.child(field("Fingerprint", mono(fp.clone(), k).key("key-fingerprint"), k));
-    }
-    if !key.comment.is_empty() {
-        facts = facts.child(field("Comment", mono(key.comment.clone(), k), k));
-    }
-    let mut files = col().w_full().gap(2.0);
-    for p in [&key.private, &key.public].into_iter().flatten() {
-        let mode = crate::fsops::mode(p).map_or_else(String::new, |m| format!("  {m:o}"));
-        files = files.child(mono(format!("{}{mode}", s.paths.tilde(p)), k));
-    }
-    facts = facts.child(field("Files", files, k));
-    let hosts = s.hosts_using(key);
-    if hosts.is_empty() {
-        let none = text("No host names it as its IdentityFile. ssh still offers it to every server unless IdentitiesOnly is set.").font(k.ty.small).color(k.c.text_faint).wrap();
-        return body.child(facts.child(field("Used by", col().key("key-hosts").w_full().child(none), k)));
-    }
-    let mut used = row().key("key-hosts").w_full().gap(4.0).flex_wrap();
-    for (i, id) in hosts.into_iter().enumerate() {
-        let sec = s.section(id);
-        used = used.child(
-            Button::new(sec.patterns.clone()).variant(ButtonVariant::Ghost).control_size(ControlSize::Small).on_press(move |s: &mut App| s.show_host(id)).build(k).key(format!("key-host-{i}")),
-        );
-    }
-    facts = facts.child(field("Used by", used, k));
-    body.child(facts)
+    ins.card(public(s, key, k)).card(details(key, k)).card(files(s, key, k)).card(used_by(s, key, k, reduced)).build(k)
 }
 
+/// `ED25519 · 256 bits · no passphrase`.
 fn describe(key: &Key) -> String {
     let mut parts = vec![match key.bits {
         Some(b) => format!("{} · {b} bits", key.kind),
@@ -266,33 +151,96 @@ fn describe(key: &Key) -> String {
     parts.join(" · ")
 }
 
-fn actions(s: &App, key: &Key, k: &Kit) -> El {
+/// The agent, the passphrase and the comment; a "…" menu with Write .pub file and Show in
+/// Finder; Move to Trash on the right.
+fn actions(s: &App, key: &Key, k: &Kit, layer: &mut Vec<El>) -> (Vec<El>, El) {
     let n = key.name.clone();
-    let mut left = row().gap(6.0).center_y().flex_wrap();
+    let mut left = Vec::new();
     if key.private.is_some() {
         if s.in_agent(key) {
             let n = n.clone();
-            left = left.child(small("Remove from agent").on_press(move |s: &mut App| s.remove_from_agent(&n)).build(k).key("key-agent-remove"));
+            left.push(ds::button("Remove from agent", Place::Inspector).on_press(move |s: &mut App| s.remove_from_agent(&n)).build(k).key("key-agent-remove"));
         } else if matches!(s.agent, Agent::Running(_)) {
             let n = n.clone();
-            left = left.child(small("Add to agent").help("ssh-add: ssh stops asking for the passphrase").on_press(move |s: &mut App| s.add_to_agent(&n)).build(k).key("key-agent-add"));
+            left.push(ds::button("Add to agent", Place::Inspector).help("ssh-add: ssh stops asking for the passphrase").on_press(move |s: &mut App| s.add_to_agent(&n)).build(k).key("key-agent-add"));
         }
         let (n1, n2) = (n.clone(), n.clone());
-        let pass_label = if key.encrypted == Some(false) { "Set passphrase…" } else { "Change passphrase…" };
-        left = left.child(small(pass_label).on_press(move |s: &mut App| s.open_pass_form(&n1, PassPurpose::Change)).build(k).key("key-passphrase"));
-        left = left.child(small("Edit comment…").on_press(move |s: &mut App| s.open_pass_form(&n2, PassPurpose::Comment)).build(k).key("key-comment"));
-        if key.public.is_none() && key.public_text.is_some() {
-            let n = n.clone();
-            left = left.child(small("Write .pub").help("Save the public half next to the key").on_press(move |s: &mut App| s.write_public(&n)).build(k).key("key-write-pub"));
-        }
+        let pass = if key.encrypted == Some(false) { "Set passphrase…" } else { "Change passphrase…" };
+        left.push(ds::button(pass, Place::Inspector).on_press(move |s: &mut App| s.open_pass_form(&n1, PassPurpose::Change)).build(k).key("key-passphrase"));
+        left.push(ds::button("Edit comment…", Place::Inspector).on_press(move |s: &mut App| s.open_pass_form(&n2, PassPurpose::Comment)).build(k).key("key-comment"));
     }
-    let n3 = n.clone();
-    left = left.child(small(if cfg!(target_os = "macos") { "Show in Finder" } else { "Show folder" }).on_press(move |s: &mut App| s.reveal(&n3)).build(k).key("key-reveal"));
-    row()
-        .key("key-actions")
-        .w_full()
-        .gap(8.0)
-        .items_start()
-        .child(left.grow(1.0).min_w(0.0))
-        .child(Button::new("Move to Trash…").variant(ButtonVariant::Danger).control_size(ControlSize::Small).on_press(move |s: &mut App| s.confirm_trash_key(&n)).build(k).key("key-trash"))
+    // Always in the menu, so the items keep their places; it can only write what is missing.
+    let can_write = key.private.is_some() && key.public.is_none() && key.public_text.is_some();
+    let (n1, n2) = (n.clone(), n.clone());
+    let more = ds::overflow::<App>(
+        k,
+        "key-more",
+        Place::Inspector,
+        s.key_menu,
+        |s: &mut App| s.key_menu = !s.key_menu,
+        |s: &mut App| s.key_menu = false,
+        vec![
+            MenuAction::new("Write .pub file", move |s: &mut App| s.write_public(&n1))
+                .description(if key.public.is_some() { "The .pub file is already there" } else { "Save the public half next to the key" })
+                .disabled(!can_write),
+            MenuAction::new(if cfg!(target_os = "macos") { "Show in Finder" } else { "Show folder" }, move |s: &mut App| s.reveal(&n2)),
+        ],
+        layer,
+    );
+    left.push(more);
+    let trash = ds::danger("Move to Trash…", Place::Inspector).on_press(move |s: &mut App| s.confirm_trash_key(&n)).build(k).key("key-trash");
+    (left, trash)
+}
+
+/// The public half, to paste into GitHub, GitLab or `authorized_keys`.
+fn public(s: &App, key: &Key, k: &Kit) -> Option<El> {
+    let public = key.public_text.as_ref()?;
+    let copy = public.clone();
+    let button = ds::copy_button("Copy", Place::Inspector, s.just_copied(public))
+        .help("Paste it into GitHub, GitLab or a server's authorized_keys")
+        .on_press_tx(move |s: &mut App, tx: &mut Tx| {
+            tx.copy(copy.clone());
+            s.copied(copy.clone());
+        })
+        .build(k)
+        .key("key-copy");
+    Card::new("card-public").label("Public key").trailing(button).row(stacked_row(k, key.kind.to_lowercase(), text::code(k, public.clone()).key("key-public"))).build(k)
+}
+
+/// The fingerprint and the comment, as far as the key has them.
+fn details(key: &Key, k: &Kit) -> Option<El> {
+    let mut card = Card::new("card-details").label("Details");
+    if let Some(fp) = &key.fingerprint {
+        card = card.row(stacked_row(k, "Fingerprint", text::code(k, fp.clone()).key("key-fingerprint")));
+    }
+    if !key.comment.is_empty() {
+        card = card.row(value_row(text::label(k, "Comment"), text::code(k, key.comment.clone()).key("key-comment-value"), &key.comment));
+    }
+    card.build(k)
+}
+
+/// The private and public files with their modes. The path is the label; it gets the room a
+/// pair row's fixed label column wouldn't give it.
+fn files(s: &App, key: &Key, k: &Kit) -> Option<El> {
+    let rows = [&key.private, &key.public].into_iter().flatten().enumerate().map(|(i, p)| {
+        let path = s.paths.tilde(p);
+        let mode = crate::fsops::mode(p).map(|m| text::code(k, format!("{m:o}")));
+        item_row(k, text::path(k, path.clone()).help(path), None, mode).key(format!("key-file-{i}"))
+    });
+    Card::new("card-files").label("Files").rows(rows).build(k)
+}
+
+/// The hosts whose IdentityFile is this key; each opens its host. An unused key says so.
+fn used_by(s: &App, key: &Key, k: &Kit, reduced: bool) -> Option<El> {
+    let card = Card::new("card-used-by").label("Used by");
+    let hosts = s.hosts_using(key);
+    if hosts.is_empty() {
+        let hint = "No host uses this key. ssh still offers it to every server unless IdentitiesOnly is set.";
+        return card.row(text::hint(k, hint).key("key-hosts-none")).build(k);
+    }
+    card.rows(hosts.into_iter().enumerate().map(|(i, id)| {
+        let name = s.section(id).patterns.clone();
+        ds::pressable(k, item_row(k, text::name(k, name.clone()), None, None), name, reduced, move |s: &mut App| s.show_host(id)).key(format!("key-host-{i}"))
+    }))
+    .build(k)
 }
