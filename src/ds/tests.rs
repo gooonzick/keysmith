@@ -287,3 +287,114 @@ mod skeletons {
         assert!(!rt.state.open, "choosing an item closes the menu");
     }
 }
+
+mod dialog {
+    use super::*;
+    use rune::{Cx, El, Env, Key, KeyEvent, Mods, Runtime, col, el};
+
+    fn env() -> Env {
+        Env { system_dark: false, scale: 1.0 }
+    }
+
+    #[derive(Default)]
+    struct Shown {
+        closed: u32,
+    }
+
+    /// A dialog with one body block `body_h` high, a Cancel and an OK button, over an empty window.
+    fn frame(kind: DialogKind, body_h: f32) -> El {
+        let k = Kit::neutral(false);
+        let mut layer = Vec::new();
+        DialogFrame::new("d", "Title", kind)
+            .body(el().key("block").w_full().h(body_h))
+            .footer(button("Cancel", Place::Bar).build(&k).key("cancel"), primary("OK", Place::Bar).build(&k).key("ok"))
+            .build(&k, |s: &mut Shown| s.closed += 1, &mut layer);
+        rune_kit::root(col().w_full().h_full(), layer)
+    }
+
+    fn run(view: fn(&Shown, &mut Cx<Shown>) -> El, size: (f32, f32)) -> Runtime<Shown> {
+        let mut rt = Runtime::new(Shown::default(), view, size, env());
+        rt.frame(0.0);
+        rt.frame(1.0);
+        rt
+    }
+
+    fn panel(rt: &Runtime<Shown>) -> [f32; 4] {
+        rt.presented("d-dialog").expect("no panel").0
+    }
+
+    #[test]
+    fn dialog_widths() {
+        let confirm = run(|_, _| frame(DialogKind::Confirm, 40.0), (1200.0, 760.0));
+        assert_eq!(panel(&confirm)[2], 440.0);
+        let form = run(|_, _| frame(DialogKind::Form, 40.0), (1200.0, 760.0));
+        assert_eq!(panel(&form)[2], 560.0);
+    }
+
+    #[test]
+    fn dialogs_share_a_top() {
+        let short = run(|_, _| frame(DialogKind::Form, 40.0), (1200.0, 760.0));
+        let tall = run(|_, _| frame(DialogKind::Form, 480.0), (1200.0, 760.0));
+        assert_eq!(panel(&short)[1], 96.0);
+        assert_eq!(panel(&tall)[1], 96.0);
+        assert!(panel(&tall)[3] > panel(&short)[3] + 400.0, "the tall dialog is not taller");
+    }
+
+    #[test]
+    fn tall_form_fits_a_small_window() {
+        let rt = run(|_, _| frame(DialogKind::Form, 900.0), (860.0, 540.0));
+        let p = panel(&rt);
+        assert!(p[1] + p[3] <= 540.0 - 16.0, "panel ends at {}", p[1] + p[3]);
+        assert!(rt.find("ok").is_some(), "no footer button");
+        let ok = rt.presented("ok").unwrap().0;
+        assert!(ok[1] >= 0.0 && ok[1] + ok[3] <= 540.0, "footer button at y {} h {}", ok[1], ok[3]);
+        let body = rt.presented("d-body").unwrap().0;
+        assert!(body[3] < 900.0, "body is {} high, it does not scroll", body[3]);
+    }
+
+    fn click(rt: &mut Runtime<Shown>, key: &str) {
+        let (x, y) = rt.find(key).unwrap_or_else(|| panic!("no {key}"));
+        rt.pointer_move(x, y);
+        rt.pointer_down(x, y);
+        rt.pointer_up(x, y);
+        rt.frame(0.0);
+    }
+
+    #[test]
+    fn escape_and_close_button_close() {
+        let mut rt = run(|_, _| frame(DialogKind::Confirm, 40.0), (1200.0, 760.0));
+        rt.key(KeyEvent { key: Key::Escape, mods: Mods::default() });
+        rt.frame(0.0);
+        assert_eq!(rt.state.closed, 1, "Escape did not close");
+        click(&mut rt, "close");
+        assert_eq!(rt.state.closed, 2, "the close button did not close");
+    }
+
+    #[test]
+    fn outside_press_closes() {
+        let mut rt = run(|_, _| frame(DialogKind::Confirm, 40.0), (1200.0, 760.0));
+        rt.pointer_move(20.0, 20.0);
+        rt.pointer_down(20.0, 20.0);
+        rt.pointer_up(20.0, 20.0);
+        rt.frame(0.0);
+        assert_eq!(rt.state.closed, 1);
+    }
+
+    fn with_menu(_: &Shown, _: &mut Cx<Shown>) -> El {
+        let k = Kit::neutral(false);
+        let mut layer = Vec::new();
+        DialogFrame::new("d", "Title", DialogKind::Form)
+            .body(el().key("block").w_full().h(40.0))
+            .menus(vec![el().key("m").size(10.0, 10.0)])
+            .build(&k, |_: &mut Shown| {}, &mut layer);
+        col().key("layer").w_full().h_full().children(layer)
+    }
+
+    #[test]
+    fn menu_layer_order() {
+        let rt = run(with_menu, (1200.0, 760.0));
+        let all = rt.elements();
+        assert!(all.iter().any(|e| e.key.as_deref() == Some("d-dialog")), "no dialog");
+        assert_eq!(all.last().and_then(|e| e.key.as_deref()), Some("m"));
+    }
+}

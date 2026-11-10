@@ -4,6 +4,7 @@
 
 mod card;
 mod controls;
+mod dialog;
 mod inspector;
 mod page;
 mod status;
@@ -14,6 +15,7 @@ mod tests;
 
 pub use card::*;
 pub use controls::*;
+pub use dialog::*;
 pub use inspector::*;
 pub use page::*;
 pub use status::*;
