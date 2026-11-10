@@ -69,13 +69,20 @@ pub fn filter(edit: &TextEdit, placeholder: &str) -> TextInput {
 /// One entry of an overflow menu.
 pub struct MenuAction<S> {
     pub label: String,
+    pub description: Option<String>,
     pub disabled: bool,
     pub run: Box<dyn Fn(&mut S)>,
 }
 
 impl<S> MenuAction<S> {
     pub fn new(label: impl Into<String>, run: impl Fn(&mut S) + 'static) -> Self {
-        MenuAction { label: label.into(), disabled: false, run: Box::new(run) }
+        MenuAction { label: label.into(), description: None, disabled: false, run: Box::new(run) }
+    }
+
+    /// A line under the label: what a button's tooltip would say.
+    pub fn description(mut self, s: impl Into<String>) -> Self {
+        self.description = Some(s.into());
+        self
     }
 
     pub fn disabled(mut self, on: bool) -> Self {
@@ -107,7 +114,11 @@ pub fn overflow<S: 'static>(
     for a in actions {
         let close = close.clone();
         let run = a.run;
-        menu = menu.item(MenuItem::new(a.label).disabled(a.disabled).on_select(move |s: &mut S| {
+        let mut item = MenuItem::new(a.label).disabled(a.disabled);
+        if let Some(d) = a.description {
+            item = item.description(d);
+        }
+        menu = menu.item(item.on_select(move |s: &mut S| {
             close(s);
             run(s);
         }));

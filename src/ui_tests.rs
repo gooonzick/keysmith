@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use rune::{Env, Runtime, TextEdit};
+use rune::{Env, Key, KeyEvent, Mods, Runtime, TextEdit};
 
 use crate::app::{App, Page};
 use crate::keys::{self, KeyType};
@@ -53,6 +53,19 @@ impl Harness {
         for _ in 0..40 {
             self.rt.frame(1.0 / 60.0);
         }
+    }
+
+    /// Elements on screen (not leaving) whose key starts with `prefix`: (key, opacity).
+    fn keyed(&self, prefix: &str) -> Vec<(String, f32)> {
+        self.rt.elements().into_iter().filter(|e| !e.exiting).filter_map(|e| e.key.filter(|k| k.starts_with(prefix)).map(|k| (k, e.opacity))).collect()
+    }
+
+    /// Replaces the config and reads everything again.
+    fn rewrite(&mut self, text: &str) {
+        fs::write(&self.paths.config, text).unwrap();
+        self.rt.state.rescan();
+        self.rt.invalidate();
+        self.settle();
     }
 
     fn config(&self) -> String {
@@ -139,7 +152,9 @@ fn edit_keeps_everything_else() {
 fn remove_asks_first_and_move_reorders() {
     let mut h = Harness::new();
     h.click("host-0-0");
-    h.click("host-down");
+    h.click("host-more");
+    // rune-kit's Menu keys its items `<menu>-item<i>`: 0 is Move up, 1 is Move down.
+    h.click("host-more-popup-item1");
     assert!(h.config().starts_with("Host *\n"), "{}", h.config());
     assert_eq!(h.rt.state.selected_host_id(), Some((0, 1)), "the selection follows the host");
     h.rt.state.undo();
@@ -249,4 +264,74 @@ fn copy_button_shows_a_check_then_reverts() {
     }
     assert!(h.rt.state.copied_at.is_none());
     assert_eq!(name(&h).as_deref(), Some("Copy"), "the check goes after a second or so");
+}
+
+#[test]
+fn hosts_inspector_is_cards() {
+    let mut h = Harness::new();
+    h.rt.state.refresh_effective();
+    h.rt.invalidate();
+    h.settle();
+    for card in ["card-connect", "card-connection", "card-keys", "card-inherited"] {
+        assert!(h.rt.find(card).is_some(), "work has {card}");
+    }
+    // `Host *` has no alias (no connection, no ssh -G) and no keys: only its options remain.
+    h.click("host-0-1");
+    let cards: Vec<String> = h.keyed("card-").into_iter().map(|(k, _)| k).collect();
+    assert_eq!(cards, ["card-options"], "no empty card frames");
+    assert!(h.rt.find("card-connection").is_none());
+}
+
+#[test]
+fn long_values_stay_inside_the_inspector() {
+    let mut h = Harness::new();
+    let (before, _) = h.rt.presented("inspector").expect("the inspector");
+    let name = "a-very-long-host-name-".repeat(8);
+    h.rewrite(&format!("{CONFIG}\nHost {name}\n  HostName {}\n  ProxyCommand {}\n", "h".repeat(200), "p".repeat(400)));
+    h.rt.state.select_host((0, 2));
+    h.rt.invalidate();
+    h.settle();
+    assert!(h.rt.find("card-options").is_some(), "the ProxyCommand is shown");
+    let (after, _) = h.rt.presented("inspector").unwrap();
+    assert!(after[2] <= 400.0, "inspector is {} wide", after[2]);
+    assert_eq!(after[2], before[2], "a long value leaves the inspector's width alone");
+}
+
+#[test]
+fn unreadable_include_shows_as_a_notice() {
+    use std::os::unix::fs::PermissionsExt;
+    let mut h = Harness::new();
+    let dir = h.ssh("config.d");
+    fs::create_dir_all(&dir).unwrap();
+    for name in ["a.conf", "b.conf", "c.conf"] {
+        let file = dir.join(name);
+        fs::write(&file, "Host hidden\n").unwrap();
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o000)).unwrap();
+    }
+    h.rewrite(&format!("Include ~/.ssh/config.d/*\n\n{CONFIG}"));
+    let texts: Vec<String> = h.rt.elements().into_iter().filter_map(|e| e.text).collect();
+    for name in ["a.conf", "b.conf", "c.conf"] {
+        assert!(texts.iter().any(|t| t.contains(name)), "a notice names {name}: {texts:?}");
+    }
+    assert_eq!(h.keyed("config-error-").into_iter().filter(|(k, _)| k.ends_with("-text")).count(), 3, "one notice each");
+    assert!(h.rt.find("host-0-0").is_some(), "the list still shows");
+}
+
+#[test]
+fn inspector_fades_on_click_but_arrows_are_instant() {
+    let mut h = Harness::new();
+    h.settle();
+    let (x, y) = h.rt.find("host-0-1").unwrap();
+    h.rt.pointer_down(x, y);
+    h.rt.pointer_up(x, y);
+    h.rt.frame(1.0 / 60.0);
+    let shown = h.keyed("inspector-host-");
+    assert!(shown.iter().any(|(_, o)| *o < 1.0), "a click fades the content in: {shown:?}");
+    h.settle();
+    h.rt.key(KeyEvent { key: Key::Up, mods: Mods::default() });
+    h.rt.frame(1.0 / 60.0);
+    assert_eq!(h.rt.state.selected_host_id(), Some((0, 0)));
+    let shown = h.keyed("inspector-host-");
+    assert_eq!(shown.len(), 1, "the old content is gone at once: {shown:?}");
+    assert_eq!(shown[0].1, 1.0, "and the new is there at once");
 }

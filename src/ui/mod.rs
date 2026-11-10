@@ -24,8 +24,6 @@ icon!(SERVER, "ks-server", r#"<rect x="2.5" y="3" width="11" height="4" rx="1" s
 icon!(KEY, "ks-key", r#"<circle cx="5.5" cy="10.5" r="3" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M7.7 8.3L13 3M11 5L12.5 6.5M9.5 6.5L10.8 7.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>"#);
 icon!(AGENT, "ks-agent", r#"<path d="M8 2.5L13 4.5V8C13 10.8 10.9 12.9 8 13.5C5.1 12.9 3 10.8 3 8V4.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" fill="none"/><path d="M6 8L7.5 9.5L10 6.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#);
 icon!(TERMINAL, "ks-terminal", r#"<rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2" fill="none"/><path d="M5 6.5L7 8L5 9.5M8.5 10H11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#);
-icon!(UP, "ks-up", r#"<path d="M8 12.5V3.5M4.5 7L8 3.5L11.5 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#);
-icon!(DOWN, "ks-down", r#"<path d="M8 3.5V12.5M4.5 9L8 12.5L11.5 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#);
 icon!(PULSE, "ks-pulse", r#"<path d="M2 8H5L6.5 4.5L9.5 11.5L11 8H14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#);
 icon!(IMPORT, "ks-import", r#"<path d="M8 2.5V9.5M5 6.5L8 9.5L11 6.5M3.5 12.5H12.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>"#);
 
@@ -46,7 +44,7 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         return rune_kit::root(gallery, layer);
     }
     let (main, toolbar, inspector) = match s.page {
-        Page::Hosts => hosts::page(s, &k, &mut layer),
+        Page::Hosts => hosts::page(s, &k, &mut layer, cx.is_reduced_motion()),
         Page::Keys => keys::page(s, &k, &mut layer),
     };
     dialogs::host_form(s, &k, &mut layer);
@@ -169,17 +167,6 @@ pub fn mono(t: impl Into<String>, k: &Kit) -> El {
     text(t.into()).font(k.ty.mono).color(k.c.text_muted).wrap_anywhere().selectable(true).selection_color(k.selection())
 }
 
-/// One option and its value in a two-column table. Both sides use the mono face so their
-/// baselines line up, and every table shares the label column width.
-pub fn kv_row(key: &str, value: impl Into<String>, k: &Kit) -> El {
-    row()
-        .w_full()
-        .gap(8.0)
-        .items_start()
-        .child(text(key.to_string()).font(k.ty.mono).color(k.c.text_faint).w(170.0).truncate().help(key.to_string()))
-        .child(mono(value, k).grow(1.0).min_w(0.0))
-}
-
 pub fn inspector_body() -> El {
     col().key("inspector").w_full().padding(16.0).gap(16.0)
 }
@@ -231,6 +218,8 @@ pub fn on_key(s: &mut App, ev: &KeyEvent, tx: &mut Tx) -> bool {
     }
     if !s.filter.focused && matches!(ev.key, rune::Key::Up | rune::Key::Down) && !ev.mods.cmd {
         let delta = if ev.key == rune::Key::Down { 1 } else { -1 };
+        // Done many times a day: the selection and the inspector change at once.
+        tx.instant();
         if let Some(key) = s.step_selection(delta) {
             tx.scroll_into_view(&key);
         }

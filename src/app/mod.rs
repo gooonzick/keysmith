@@ -65,6 +65,8 @@ pub struct App {
     pub effective: Latest<(String, EffectiveResult)>,
     pub effective_for: Option<Effective>,
     pub show_all_effective: bool,
+    /// The selected host's "…" menu (Move up, Move down) is open.
+    pub host_menu: bool,
     /// A connection test: the alias it ran for and what ssh said.
     pub conn_test: Latest<(String, Result<String, String>)>,
     pub testing: Option<String>,
@@ -110,6 +112,7 @@ impl App {
             effective: Latest::default(),
             effective_for: None,
             show_all_effective: false,
+            host_menu: false,
             conn_test: Latest::default(),
             testing: None,
             tested: None,
@@ -366,9 +369,9 @@ impl App {
         }
     }
 
-    /// Whether a dialog is open: keys then belong to it.
+    /// Whether a dialog or menu is open: keys then belong to it.
     pub fn modal(&self) -> bool {
-        self.host_form.is_some() || self.new_key.is_some() || self.pass_form.is_some() || self.confirm.is_some()
+        self.host_menu || self.host_form.is_some() || self.new_key.is_some() || self.pass_form.is_some() || self.confirm.is_some()
     }
 }
 

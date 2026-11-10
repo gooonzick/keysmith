@@ -183,6 +183,7 @@ impl App {
         let r = self.host_ref(id);
         if self.selected_host.as_ref() != Some(&r) {
             self.selected_host = Some(r);
+            self.host_menu = false;
             self.show_all_effective = false;
             self.refresh_effective();
         }
