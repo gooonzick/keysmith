@@ -52,9 +52,8 @@ impl Inspector {
         self
     }
 
-    /// One row: up to three buttons and an overflow on the left, one more (usually the
-    /// destructive one) pinned right. When the left buttons don't fit the pane they wrap onto a
-    /// second line instead of pushing the pane wider.
+    /// One row that never wraps: up to three buttons and an overflow on the left, one more
+    /// (usually the destructive one) pinned right.
     pub fn actions(mut self, left: Vec<El>, right: Option<El>) -> Self {
         self.left = left;
         self.right = right;
@@ -97,10 +96,7 @@ impl Inspector {
             pane = pane.child(head);
         }
         if !self.left.is_empty() || self.right.is_some() {
-            // The left group wraps rather than push the pane wider when its buttons don't fit
-            // (a key's labels are long); the right one stays pinned to the first line.
-            let left = row().grow(1.0).min_w(0.0).gap(space::S2).center_y().flex_wrap().children(self.left);
-            let mut actions = row().w_full().gap(space::S2).items_start().justify_between().child(left);
+            let mut actions = row().w_full().gap(space::S2).center_y().justify_between().child(row().gap(space::S2).center_y().children(self.left));
             if let Some(r) = self.right {
                 actions = actions.child(r);
             }

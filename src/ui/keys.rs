@@ -151,12 +151,13 @@ fn describe(key: &Key) -> String {
     parts.join(" · ")
 }
 
-/// The agent, the passphrase and the comment; a "…" menu with Write .pub file and Show in
-/// Finder; Move to Trash on the right.
+/// The agent toggle; a "…" menu with the passphrase, the comment, Write .pub file and Show in
+/// Finder; Move to Trash on the right. One row that fits the narrowest inspector.
 fn actions(s: &App, key: &Key, k: &Kit, layer: &mut Vec<El>) -> (Vec<El>, El) {
     let n = key.name.clone();
+    let private = key.private.is_some();
     let mut left = Vec::new();
-    if key.private.is_some() {
+    if private {
         if s.in_agent(key) {
             let n = n.clone();
             left.push(ds::button("Remove from agent", Place::Inspector).on_press(move |s: &mut App| s.remove_from_agent(&n)).build(k).key("key-agent-remove"));
@@ -164,14 +165,11 @@ fn actions(s: &App, key: &Key, k: &Kit, layer: &mut Vec<El>) -> (Vec<El>, El) {
             let n = n.clone();
             left.push(ds::button("Add to agent", Place::Inspector).help("ssh-add: ssh stops asking for the passphrase").on_press(move |s: &mut App| s.add_to_agent(&n)).build(k).key("key-agent-add"));
         }
-        let (n1, n2) = (n.clone(), n.clone());
-        let pass = if key.encrypted == Some(false) { "Set passphrase…" } else { "Change passphrase…" };
-        left.push(ds::button(pass, Place::Inspector).on_press(move |s: &mut App| s.open_pass_form(&n1, PassPurpose::Change)).build(k).key("key-passphrase"));
-        left.push(ds::button("Edit comment…", Place::Inspector).on_press(move |s: &mut App| s.open_pass_form(&n2, PassPurpose::Comment)).build(k).key("key-comment"));
     }
-    // Always in the menu, so the items keep their places; it can only write what is missing.
-    let can_write = key.private.is_some() && key.public.is_none() && key.public_text.is_some();
-    let (n1, n2) = (n.clone(), n.clone());
+    // Every item is always there, so each keeps its place; what doesn't apply is disabled.
+    let can_write = private && key.public.is_none() && key.public_text.is_some();
+    let pass = if key.encrypted == Some(false) { "Set passphrase…" } else { "Change passphrase…" };
+    let (n1, n2, n3, n4) = (n.clone(), n.clone(), n.clone(), n.clone());
     let more = ds::overflow::<App>(
         k,
         "key-more",
@@ -180,10 +178,12 @@ fn actions(s: &App, key: &Key, k: &Kit, layer: &mut Vec<El>) -> (Vec<El>, El) {
         |s: &mut App| s.key_menu = !s.key_menu,
         |s: &mut App| s.key_menu = false,
         vec![
-            MenuAction::new("Write .pub file", move |s: &mut App| s.write_public(&n1))
+            MenuAction::new(pass, move |s: &mut App| s.open_pass_form(&n1, PassPurpose::Change)).disabled(!private),
+            MenuAction::new("Edit comment…", move |s: &mut App| s.open_pass_form(&n2, PassPurpose::Comment)).disabled(!private),
+            MenuAction::new("Write .pub file", move |s: &mut App| s.write_public(&n3))
                 .description(if key.public.is_some() { "The .pub file is already there" } else { "Save the public half next to the key" })
                 .disabled(!can_write),
-            MenuAction::new(if cfg!(target_os = "macos") { "Show in Finder" } else { "Show folder" }, move |s: &mut App| s.reveal(&n2)),
+            MenuAction::new(if cfg!(target_os = "macos") { "Show in Finder" } else { "Show folder" }, move |s: &mut App| s.reveal(&n4)),
         ],
         layer,
     );

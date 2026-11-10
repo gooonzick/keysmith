@@ -205,7 +205,9 @@ fn passphrase_dialog_changes_it() {
     let mut h = Harness::new();
     h.click("nav-keys");
     h.click("key-id_work");
-    h.click("key-passphrase");
+    h.click("key-more");
+    assert_eq!(h.rt.elements().into_iter().find(|e| e.key.as_deref() == Some("key-more-popup-item0")).and_then(|e| e.label).as_deref(), Some("Set passphrase…"));
+    h.click("key-more-popup-item0");
     {
         let f = h.rt.state.pass_form.as_mut().expect("open");
         f.new = TextEdit::new("secret").secure();
@@ -215,7 +217,8 @@ fn passphrase_dialog_changes_it() {
     assert!(h.rt.state.pass_form.is_none(), "{:?}", h.rt.state.pass_form.as_ref().and_then(|f| f.error.clone()));
     assert_eq!(h.rt.state.key("id_work").unwrap().encrypted, Some(true));
 
-    h.click("key-passphrase");
+    h.click("key-more");
+    h.click("key-more-popup-item0");
     h.rt.state.pass_form.as_mut().unwrap().old = TextEdit::new("wrong").secure();
     h.click("pass-save");
     assert_eq!(h.rt.state.pass_form.as_ref().unwrap().error.as_deref(), Some("Wrong passphrase"));
@@ -389,9 +392,9 @@ fn key_more_menu_reveals_and_writes_pub() {
     h.click("key-more");
     assert!(h.rt.state.key_menu && h.rt.state.modal(), "the open menu takes the keys");
     let label = |h: &Harness, key: &str| h.rt.elements().into_iter().find(|e| e.key.as_deref() == Some(key)).and_then(|e| e.label);
-    assert_eq!(label(&h, "key-more-popup-item0").as_deref(), Some("Write .pub file"));
-    assert!(label(&h, "key-more-popup-item1").is_some(), "Show in Finder");
-    h.click("key-more-popup-item0");
+    assert_eq!(label(&h, "key-more-popup-item2").as_deref(), Some("Write .pub file"));
+    assert!(label(&h, "key-more-popup-item3").is_some(), "Show in Finder");
+    h.click("key-more-popup-item2");
     assert!(h.ssh("id_work.pub").exists(), "the .pub is back");
     assert!(!h.rt.state.key_menu, "choosing closes the menu");
     // The key goes away on disk while its menu is open: the menu goes with it.
@@ -425,11 +428,15 @@ fn key_actions_stay_inside_the_inspector() {
     h.rt.state.rescan();
     h.click("nav-keys");
     let (pane, _) = h.rt.presented("inspector").expect("the inspector");
-    let (trash, _) = h.rt.presented("key-trash").expect("Move to Trash");
-    for key in ["key-agent-add", "key-passphrase", "key-comment", "key-more", "key-trash"] {
+    let (first, _) = h.rt.presented("key-agent-add").expect("Add to agent");
+    for key in ["key-agent-add", "key-more", "key-trash"] {
         let (r, _) = h.rt.presented(key).unwrap_or_else(|| panic!("{key} is shown"));
         assert!(r[0] >= pane[0] && r[0] + r[2] <= pane[0] + pane[2], "{key} at {r:?} is inside the inspector {pane:?}");
+        assert_eq!(r[1] + r[3] / 2.0, first[1] + first[3] / 2.0, "{key} is on the one action row");
     }
-    let (first, _) = h.rt.presented("key-agent-add").unwrap();
-    assert_eq!(trash[1], first[1], "Move to Trash stays on the first line");
+    // The comment is in the menu now.
+    h.click("key-more");
+    h.click("key-more-popup-item1");
+    assert_eq!(h.rt.state.pass_form.as_ref().map(|f| f.purpose), Some(crate::app::PassPurpose::Comment));
 }
+
