@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Keysmith: a glass keyhole holding a shell prompt, in Prism's style -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2d36"/><stop offset="1" stop-color="#121318"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.06"/></linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="185.5" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+  <path d="M512 226 A170 170 0 0 1 610 535 L680 798 L344 798 L414 535 A170 170 0 0 1 512 226 Z" fill="#1c1e25"/>
+  <path d="M512 226 A170 170 0 0 1 610 535 L680 798 L344 798 L414 535 A170 170 0 0 1 512 226 Z" fill="url(#glass)" stroke="#ffffff" stroke-width="36" stroke-linejoin="round"/>
+  <path d="M450 340 L530 396 L450 452" stroke="#2fc48d" stroke-width="36" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- The cursor: one segment per host colour, as in Prism -->
+  <g stroke-width="38" stroke-linecap="round">
+    <path d="M436 704 H452" stroke="#ff6b4a"/><path d="M504 704 H520" stroke="#ffb340"/>
+    <path d="M572 704 H588" stroke="#4a9bff"/>
+  </g>
+</svg>
