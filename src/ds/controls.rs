@@ -62,20 +62,34 @@ pub struct MenuAction<S> {
     pub run: Box<dyn Fn(&mut S)>,
 }
 
-/// A "more" button that opens a menu of `actions`. The menu goes into `layer` and anchors to the
-/// button (keyed `<key>-button`); choosing an item closes the menu, then runs its action.
+impl<S> MenuAction<S> {
+    pub fn new(label: impl Into<String>, run: impl Fn(&mut S) + 'static) -> Self {
+        MenuAction { label: label.into(), disabled: false, run: Box::new(run) }
+    }
+
+    pub fn disabled(mut self, on: bool) -> Self {
+        self.disabled = on;
+        self
+    }
+}
+
+/// A "more" button that opens a menu of `actions`. The button is keyed `key`; the menu goes into
+/// `layer`, anchors to the button, and its items are keyed `<key>-popup-item<i>` (rune-kit's
+/// `Menu` fixes the item keys). Choosing an item closes the menu, then runs its action.
+#[allow(clippy::too_many_arguments)] // the brief's signature plus `place`
 pub fn overflow<S: 'static>(
     k: &Kit,
     key: &str,
+    place: Place,
     open: bool,
     toggle: impl Fn(&mut S) + 'static,
     close: impl Fn(&mut S) + 'static,
     actions: Vec<MenuAction<S>>,
     layer: &mut Vec<El>,
 ) -> El {
-    let trigger = icon_button(&MORE, "More actions", Place::Inspector).expanded(open).on_press(toggle).build(k).key(format!("{key}-button"));
+    let trigger = icon_button(&MORE, "More actions", place).expanded(open).on_press(toggle).build(k).key(key);
     let close = Rc::new(close);
-    let mut menu = Menu::new(key).trigger(trigger).open(open).on_close({
+    let mut menu = Menu::new(format!("{key}-popup")).trigger(trigger).open(open).on_close({
         let close = close.clone();
         move |s: &mut S| close(s)
     });

@@ -188,6 +188,21 @@ mod skeletons {
         assert_eq!(rt.presented("without").unwrap().0[3], 32.0);
     }
 
+    fn alone(_: &(), _: &mut Cx<()>) -> El {
+        let k = Kit::neutral(false);
+        col().w_full().padding(16.0).items_stretch().child(ListRow::new("row", "work").build(&k, |_: &mut ()| {}))
+    }
+
+    #[test]
+    fn list_row_owns_its_edge() {
+        let mut rt = Runtime::new((), alone, (400.0, 600.0), env());
+        rt.frame(0.0);
+        let row = rt.presented("row").unwrap().0;
+        assert_eq!((row[0], row[2]), (8.0, 384.0));
+        let name = rt.presented("row-name").unwrap().0;
+        assert_eq!(name[0], 16.0);
+    }
+
     fn crowded(_: &(), _: &mut Cx<()>) -> El {
         let k = Kit::neutral(false);
         let mut page = Page::new("page").count("40 hosts");
@@ -222,10 +237,11 @@ mod skeletons {
         let more = overflow(
             &k,
             "more",
+            Place::Inspector,
             s.open,
             |s: &mut Menus| s.open = !s.open,
             |s: &mut Menus| s.open = false,
-            vec![MenuAction { label: "Copy".into(), disabled: false, run: Box::new(|s: &mut Menus| s.ran += 1) }],
+            vec![MenuAction::new("Copy", |s: &mut Menus| s.ran += 1)],
             &mut layer,
         );
         let pane = Inspector::new()
@@ -254,7 +270,7 @@ mod skeletons {
     fn inspector_actions_stay_on_one_row() {
         let mut rt = Runtime::new(Menus::default(), actions_view, (320.0, 400.0), env());
         rt.frame(0.0);
-        let ys: Vec<f32> = ["b1", "b2", "b3", "more-button", "del"].iter().map(|k| rt.find(k).unwrap_or_else(|| panic!("no {k}")).1).collect();
+        let ys: Vec<f32> = ["b1", "b2", "b3", "more", "del"].iter().map(|k| rt.find(k).unwrap_or_else(|| panic!("no {k}")).1).collect();
         assert!(ys.iter().all(|y| (y - ys[0]).abs() < 0.5), "centres {ys:?}");
         let del = rt.presented("del").unwrap().0;
         assert!((del[0] + del[2] - (320.0 - 16.0)).abs() <= 0.5, "delete ends at {}", del[0] + del[2]);
@@ -264,9 +280,9 @@ mod skeletons {
     fn overflow_opens_and_runs() {
         let mut rt = Runtime::new(Menus::default(), actions_view, (320.0, 400.0), env());
         rt.frame(0.0);
-        click(&mut rt, "more-button");
+        click(&mut rt, "more");
         assert!(rt.state.open, "trigger did not toggle");
-        click(&mut rt, "more-item0");
+        click(&mut rt, "more-popup-item0");
         assert_eq!(rt.state.ran, 1);
         assert!(!rt.state.open, "choosing an item closes the menu");
     }

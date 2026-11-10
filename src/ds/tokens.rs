@@ -11,6 +11,8 @@ pub mod space {
     pub const S3: f32 = 12.0;
     pub const S4: f32 = 16.0;
     pub const S6: f32 = 24.0;
+    /// Gap between list rows.
+    pub const ROW_GAP: f32 = 2.0;
 }
 
 /// Corner radii in points.
@@ -135,6 +137,8 @@ pub mod color {
 pub mod motion {
     use super::*;
 
+    /// Opacity of a de-emphasised row (a pattern, an unused entry).
+    pub const DIM: f32 = 0.75;
     pub const COPY_CONFIRM_SECS: f64 = 1.2;
 
     pub fn press_scale(reduced: bool) -> f32 {

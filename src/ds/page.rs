@@ -71,15 +71,17 @@ impl Page {
                 None => page,
             };
         }
-        // Rows paint a highlight `S2` past the content edge, so the list is `S2` wider than the
-        // page's content on each side and its rows pad themselves back in.
+        // Rows paint a highlight `S2` past the content edge. The scroll area clips, so it is
+        // `S2` wider than the content on each side and pads that back; the rows own their edge.
         let list = col()
             .key("list")
             .w_full()
             .min_h(0.0)
             .grow(1.0)
             .mx(-space::S2)
-            .gap(2.0)
+            .px(space::S2)
+            .items_stretch()
+            .gap(space::ROW_GAP)
             .scroll(ScrollSpec { stick_bottom: false })
             .children(self.rows);
         page.child(list)
@@ -135,8 +137,9 @@ impl ListRow {
         self
     }
 
-    /// The name is keyed `<key>-name`. The row pads `S2` inside, because it sits in a `Page`
-    /// list that reaches `S2` beyond the content edge: icon and name land on the edge itself.
+    /// The name is keyed `<key>-name`. The row has `S2` of negative margin and `S2` of padding:
+    /// its icon and name sit on the parent's content edge and its highlight reaches `S2` past it.
+    /// The parent must stretch its children (a `Page` list does).
     pub fn build<S: 'static>(self, k: &Kit, on_press: impl Fn(&mut S) + 'static) -> El {
         let height = if self.meta.is_some() { size::ROW_2 } else { size::ROW_1 };
         let mut body = col().grow(1.0).min_w(0.0).child(text::name(k, self.name.clone()).key(format!("{}-name", self.key)));
@@ -148,8 +151,8 @@ impl ListRow {
             .role("button")
             .label(self.name)
             .focusable(true)
-            .w_full()
             .h(height)
+            .mx(-space::S2)
             .px(space::S2)
             .gap(space::S3)
             .center_y()
@@ -164,7 +167,7 @@ impl ListRow {
             r = r.child(row().gap(space::S1).center_y().children(self.tags));
         }
         r = if self.selected { r.fill(color::selected(k)) } else { r.hover(color::hover(k)) };
-        if self.dim { r.dim(0.75) } else { r }
+        if self.dim { r.dim(motion::DIM) } else { r }
     }
 }
 
