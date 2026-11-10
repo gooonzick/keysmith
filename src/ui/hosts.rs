@@ -9,7 +9,7 @@ use rune_kit::{Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant
 
 use super::{PLUS, PULSE, REFRESH, SERVER, TERMINAL, host_key, plural};
 use crate::app::{App, HostRef};
-use crate::ds::{self, Card, Inspector, ListRow, MenuAction, Notice, Place, Tone, item_row, pair_row, pair_row_with, plain_row, stacked_row_with, text};
+use crate::ds::{self, Card, Inspector, ListRow, MenuAction, Notice, Place, Tone, item_row, pair_row_with, plain_row, stacked_row_with, text};
 use crate::paths::Paths;
 use crate::sshconfig::{Kind, Section, canonical};
 
@@ -235,7 +235,7 @@ fn connect(s: &App, alias: &str, k: &Kit) -> Option<El> {
 fn connection(sec: &Section, k: &Kit) -> Option<El> {
     let rows = [("Address", "HostName"), ("User", "User"), ("Port", "Port"), ("Jump through", "ProxyJump")]
         .into_iter()
-        .filter_map(|(label, key)| sec.get(key).map(|v| pair_row(k, label, text::value(k, v.clone()).help(v).key(format!("value-{}", key.to_lowercase())))));
+        .filter_map(|(label, key)| sec.get(key).map(|v| value_row(text::label(k, label), text::code(k, v.clone()).help(v.clone()).key(format!("value-{}", key.to_lowercase())), &v)));
     Card::new("card-connection").label("Connection").rows(rows).build(k)
 }
 
@@ -275,12 +275,17 @@ fn options(sec: &Section, k: &Kit) -> Option<El> {
     card.rows(sec.options.iter().filter(|o| !MAIN.contains(&o.key.to_lowercase().as_str())).map(|o| option_row(k, &o.key, o.value.clone()))).build(k)
 }
 
-/// An option in the code face. A value too long for the right-hand column goes under the name
-/// at full width, where it wraps.
+/// An option in the code face.
 fn option_row(k: &Kit, key: &str, value: String) -> El {
-    const LONG: usize = 28;
     let label = text::code(k, key.to_string()).truncate().help(key.to_string());
-    if value.chars().count() > LONG { stacked_row_with(label, text::code(k, value)) } else { pair_row_with(label, text::code(k, value)) }
+    value_row(label, text::code(k, value.clone()), &value)
+}
+
+/// A label and a value on one line; a value (`text`) too long for the right-hand column goes
+/// under the label at full width, where it wraps.
+fn value_row(label: El, value: El, text: &str) -> El {
+    const LONG: usize = 28;
+    if text.chars().count() > LONG { stacked_row_with(label, value) } else { pair_row_with(label, value) }
 }
 
 /// What `ssh -G` makes of the host. By default only what the section doesn't set itself (what it

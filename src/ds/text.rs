@@ -29,9 +29,10 @@ pub fn code(k: &Kit, s: impl Into<String>) -> El {
     styled(s, ty::code(k), color::text(k)).wrap_anywhere().selectable(true).selection_color(k.selection())
 }
 
-/// A path: code face, one line, the middle cut when it does not fit.
+/// A path: code face, one line, the middle cut when it does not fit; selectable (a copy takes
+/// the whole path).
 pub fn path(k: &Kit, s: impl Into<String>) -> El {
-    styled(s, ty::code(k), color::text(k)).truncate_middle()
+    styled(s, ty::code(k), color::text(k)).truncate_middle().selectable(true).selection_color(k.selection())
 }
 
 /// A small muted caption; one line.

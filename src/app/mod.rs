@@ -157,6 +157,7 @@ impl App {
         self.agent = keyops::agent(&self.paths);
         if self.selected_host.as_ref().is_some_and(|r| self.resolve(r).is_none()) {
             self.selected_host = None;
+            self.host_menu = false;
         }
         if self.selected_key.as_ref().is_some_and(|n| self.key(n).is_none()) {
             self.selected_key = None;
@@ -369,9 +370,10 @@ impl App {
         }
     }
 
-    /// Whether a dialog or menu is open: keys then belong to it.
+    /// Whether a dialog or menu is open: keys then belong to it. The host menu counts only
+    /// while it can show: on the hosts page, with a host selected.
     pub fn modal(&self) -> bool {
-        self.host_menu || self.host_form.is_some() || self.new_key.is_some() || self.pass_form.is_some() || self.confirm.is_some()
+        (self.host_menu && self.page == Page::Hosts && self.selected_host_id().is_some()) || self.host_form.is_some() || self.new_key.is_some() || self.pass_form.is_some() || self.confirm.is_some()
     }
 }
 

@@ -292,6 +292,8 @@ fn long_values_stay_inside_the_inspector() {
     h.rt.invalidate();
     h.settle();
     assert!(h.rt.find("card-options").is_some(), "the ProxyCommand is shown");
+    let (address, _) = h.rt.presented("value-hostname").expect("the address");
+    assert!(address[3] > 18.0 * 1.5, "a long address wraps instead of being cut: {address:?}");
     let (after, _) = h.rt.presented("inspector").unwrap();
     assert!(after[2] <= 400.0, "inspector is {} wide", after[2]);
     assert_eq!(after[2], before[2], "a long value leaves the inspector's width alone");
@@ -334,4 +336,18 @@ fn inspector_fades_on_click_but_arrows_are_instant() {
     let shown = h.keyed("inspector-host-");
     assert_eq!(shown.len(), 1, "the old content is gone at once: {shown:?}");
     assert_eq!(shown[0].1, 1.0, "and the new is there at once");
+}
+
+#[test]
+fn a_host_menu_left_open_doesnt_swallow_keys() {
+    let mut h = Harness::new();
+    h.click("host-more");
+    assert!(h.rt.state.host_menu && h.rt.state.modal(), "the open menu takes the keys");
+    // The host goes away on disk while its menu is open: the menu goes with it.
+    h.rewrite("Host *\n  ServerAliveInterval 30\n");
+    assert!(h.rt.state.selected_host_id().is_none());
+    assert!(!h.rt.state.modal(), "no menu shows, so none holds the keys");
+    h.rt.key(KeyEvent { key: Key::Command('2'), mods: Mods { cmd: true, ..Mods::default() } });
+    h.settle();
+    assert_eq!(h.rt.state.page, Page::Keys, "⌘2 still works");
 }
