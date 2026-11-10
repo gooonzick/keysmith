@@ -6,6 +6,7 @@
 //! trash) instead of yours. `cargo run -- --snap out.png --scene NAME` renders headless.
 
 mod app;
+mod ds;
 mod fsops;
 mod keys;
 mod paths;
