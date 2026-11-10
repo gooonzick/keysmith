@@ -37,10 +37,15 @@ pub mod size {
     /// Trash…") fits at 352, not at the 320 first planned.
     pub const INSPECTOR_MIN: f32 = 352.0;
     pub const INSPECTOR_MAX: f32 = 400.0;
-    /// The list's narrowest width; below sidebar + this + `INSPECTOR_MIN` the inspector hides.
-    pub const LIST_MIN: f32 = 480.0;
+    /// The list's room in the inspector rule: below sidebar + this + `INSPECTOR_MIN` the
+    /// inspector hides. 276 = the 860 minimum window − the 232 default sidebar − `INSPECTOR_MIN`,
+    /// so the minimum window shows all three panes. The rule counts the inspector at its
+    /// narrowest; a wider one (up to `INSPECTOR_MAX`) leaves the list that much less.
+    pub const LIST_MIN: f32 = 276.0;
     pub const PANE_EDGE: f32 = 16.0;
     pub const PAIR_LABEL: f32 = 120.0;
+    /// A list row's name column never gets narrower than this; its tags give way first.
+    pub const ROW_NAME_MIN: f32 = 120.0;
     /// A short field beside a wide one: a port.
     pub const FIELD_SHORT: f32 = 96.0;
     /// How far a focused field's ring reaches outside the field.

@@ -80,9 +80,12 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
     rune_kit::root(split, layer)
 }
 
-/// Whether the window has room for the inspector beside the sidebar and a list of at least
-/// `size::LIST_MIN`. In a narrower window the inspector goes first, and comes back when the
-/// window widens. Before the first layout there is no width yet, and the inspector shows.
+/// Whether the window has room for the sidebar, `size::LIST_MIN` of list and the inspector at
+/// its narrowest (`size::INSPECTOR_MIN`). The inspector is counted at its narrowest so the
+/// minimum window with the default sidebar keeps all three panes; at its default 400 the list
+/// gets up to 48 points less than `LIST_MIN`. In a narrower window (or beside a wider sidebar)
+/// the inspector goes first, and comes back when there is room. Before the first layout there
+/// is no width yet, and the inspector shows.
 fn inspector_fits(s: &App, cx: &Cx<App>) -> bool {
     let needed = s.sidebar.shown_width() + size::LIST_MIN + size::INSPECTOR_MIN;
     cx.layout_with("kit-root", move |r| r[2] >= needed).unwrap_or(true)

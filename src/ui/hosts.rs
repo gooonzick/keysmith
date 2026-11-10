@@ -3,7 +3,7 @@
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-use rune::{El, Tx, col, row};
+use rune::{El, Tx, row};
 use rune_kit::shell::Toolbar;
 use rune_kit::Kit;
 
@@ -139,7 +139,7 @@ fn subject(r: &HostRef) -> String {
 
 fn inspector(s: &App, k: &Kit, layer: &mut Vec<El>) -> El {
     let (Some(id), Some(r)) = (s.selected_host_id(), s.selected_host.as_ref()) else {
-        return col().key("inspector").w_full().padding(ds::size::PANE_EDGE).child(ds::empty(k, "No host selected", "Select a host to see its settings and keys."));
+        return Inspector::empty(k, "No host selected", "Select a host to see its settings and keys.");
     };
     let sec = s.section(id);
     let doc = &s.docs[id.0];
@@ -231,7 +231,7 @@ fn connect(s: &App, alias: &str, k: &Kit) -> Option<El> {
 fn connection(sec: &Section, k: &Kit) -> Option<El> {
     let rows = [("Address", "HostName"), ("User", "User"), ("Port", "Port"), ("Jump through", "ProxyJump")]
         .into_iter()
-        .filter_map(|(label, key)| sec.get(key).map(|v| value_row(text::label(k, label), text::code(k, v.clone()).help(v.clone()).key(format!("value-{}", key.to_lowercase())), &v)));
+        .filter_map(|(label, key)| sec.get(key).map(|v| value_row(text::label(k, label), label, text::code(k, v.clone()).help(v.clone()).key(format!("value-{}", key.to_lowercase())), &v)));
     Card::new("card-connection").label("Connection").rows(rows).build(k)
 }
 
@@ -258,7 +258,7 @@ fn identity(s: &App, value: &str, i: usize, k: &Kit) -> El {
         let name = key.name.clone();
         trailing = trailing.child(ds::quiet("Show key", Place::Inspector).on_press(move |s: &mut App| s.show_key(&name)).build(k).key(format!("identity-{i}-show")));
     }
-    item_row(k, text::path(k, value.to_string()).help(value.to_string()), hint.map(|h| text::hint(k, h)), Some(trailing)).key(format!("identity-{i}"))
+    item_row(text::path(k, value.to_string()).help(value.to_string()), hint.map(|h| text::hint(k, h)), Some(trailing)).key(format!("identity-{i}"))
 }
 
 /// Every other option the section sets.
@@ -274,7 +274,7 @@ fn options(sec: &Section, k: &Kit) -> Option<El> {
 /// An option in the code face.
 fn option_row(k: &Kit, key: &str, value: String) -> El {
     let label = text::code(k, key.to_string()).truncate().help(key.to_string());
-    value_row(label, text::code(k, value.clone()), &value)
+    value_row(label, key, text::code(k, value.clone()), &value)
 }
 
 /// What `ssh -G` makes of the host. By default only what the section doesn't set itself (what it

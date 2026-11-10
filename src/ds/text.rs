@@ -9,9 +9,9 @@ fn styled(s: impl Into<String>, style: rune::TextStyle, c: rune::Color) -> El {
     text(s.into()).font(style).color(c)
 }
 
-/// A heading; wraps.
+/// A heading; wraps, and breaks inside a word too long for a line (a dotted host name).
 pub fn title(k: &Kit, s: impl Into<String>) -> El {
-    styled(s, ty::title(k), color::text(k)).wrap()
+    styled(s, ty::title(k), color::text(k)).wrap_anywhere()
 }
 
 /// A value; one line, cut with an ellipsis at the end.

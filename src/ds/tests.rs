@@ -58,7 +58,9 @@ fn places() {
 #[test]
 fn pane_widths() {
     // 352, not the spec's first 320: the Keys action row with "Remove from agent" needs it.
-    assert_eq!([size::INSPECTOR_MIN, size::INSPECTOR_MAX, size::LIST_MIN], [352.0, 400.0, 480.0]);
+    assert_eq!([size::INSPECTOR_MIN, size::INSPECTOR_MAX, size::LIST_MIN], [352.0, 400.0, 276.0]);
+    // The minimum window (860) with the default sidebar (232) shows all three panes.
+    const { assert!(232.0 + size::LIST_MIN + size::INSPECTOR_MIN <= 860.0) };
 }
 
 mod blocks {
@@ -88,7 +90,7 @@ mod blocks {
                 .label("Group")
                 .row(pair_row_with(text::label(&k, "Port").key("r1-label"), text::value(&k, "22")))
                 .row(stacked_row_with(text::label(&k, "Path").key("r2-label"), text::code(&k, "abc")))
-                .row(item_row(&k, text::name(&k, "work").key("r3-name"), Some(text::hint(&k, "deploy")), None))
+                .row(item_row(text::name(&k, "work").key("r3-name"), Some(text::hint(&k, "deploy")), None))
                 .build(&k),
         )
     }
@@ -131,6 +133,37 @@ mod blocks {
         assert!(card[2] <= W, "card is {} wide", card[2]);
         let v = rt.presented("val").unwrap().0;
         assert!(v[0] + v[2] <= card[0] + card[2], "value ends at {}, card at {}", v[0] + v[2], card[0] + card[2]);
+    }
+
+    /// Value rows at the edge of the budget, in a card as wide as the narrowest inspector's.
+    fn budget_rows(_: &(), _: &mut Cx<()>) -> El {
+        use super::card::{PAIR_LABEL_CHARS, PAIR_LINE_CHARS};
+        let k = Kit::neutral(false);
+        // A long label with the longest value that still fits, a short one likewise, then one
+        // character more.
+        let long_label = "L".repeat(PAIR_LINE_CHARS - 6);
+        let rows = [(long_label.clone(), "v".repeat(6)), ("Port".to_string(), "v".repeat(PAIR_LINE_CHARS - PAIR_LABEL_CHARS)), (long_label, "v".repeat(7))];
+        let card = Card::new("card").rows(rows.into_iter().enumerate().map(|(i, (l, v))| {
+            value_row(text::code(&k, l.clone()).truncate().key(format!("l{i}")), &l, text::code(&k, v.clone()).key(format!("v{i}")), &v).key(format!("row{i}"))
+        }));
+        col().w(size::INSPECTOR_MIN).h_full().padding(size::PANE_EDGE).child(card.build(&k).expect("rows"))
+    }
+
+    #[test]
+    fn pair_rows_show_the_label_in_full_or_stack() {
+        let rt = rt(budget_rows);
+        let k = Kit::neutral(false);
+        let r = |key: &str| rt.presented(key).unwrap_or_else(|| panic!("no {key}")).0;
+        let card = r("card");
+        let one_line = 20.0;
+        for i in 0..2 {
+            let (l, v) = (r(&format!("l{i}")), r(&format!("v{i}")));
+            assert!(r(&format!("row{i}"))[3] <= one_line, "row {i} is one line");
+            let text = rt.elements().into_iter().find(|e| e.key.as_deref() == Some(&format!("l{i}"))).and_then(|e| e.text).unwrap();
+            assert!(l[2] >= rune::text::advance(&text, ty::code(&k)), "label {i} is cut: {l:?}");
+            assert!(v[0] + v[2] <= card[0] + card[2], "value {i} ends at {}, the card at {}", v[0] + v[2], card[0] + card[2]);
+        }
+        assert!(r("row2")[3] > one_line, "one character more and the value goes under the label");
     }
 
     #[test]
@@ -192,6 +225,22 @@ mod skeletons {
             .w_full()
             .child(ListRow::new("with", "a").meta("b").build(&k, |_: &mut ()| {}))
             .child(ListRow::new("without", "a").icon(&glyphs::SEARCH).build(&k, |_: &mut ()| {}))
+    }
+
+    fn many_tags(_: &(), _: &mut Cx<()>) -> El {
+        let k = Kit::neutral(false);
+        let tags = (0..8).map(|i| tag(&k, format!("id_ed25519_{i}"), None, ""));
+        col().w(300.0).items_stretch().child(ListRow::new("row", "production-db").icon(&glyphs::SEARCH).tags(tags).build(&k, |_: &mut ()| {}))
+    }
+
+    #[test]
+    fn tags_give_way_to_the_name() {
+        let mut rt = Runtime::new((), many_tags, (400.0, 600.0), env());
+        rt.frame(0.0);
+        let name = rt.presented("row-name").unwrap().0;
+        assert!(name[2] >= size::ROW_NAME_MIN, "the name keeps {} of {}", name[2], size::ROW_NAME_MIN);
+        let row = rt.presented("row").unwrap().0;
+        assert!(name[0] + name[2] <= row[0] + row[2], "the name stays in the row");
     }
 
     #[test]

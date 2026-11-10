@@ -120,8 +120,8 @@ fn cards<S: 'static>(k: &Kit) -> Vec<Option<El>> {
             .build(k),
         Card::new("gallery-items")
             .label("Keys")
-            .row(item_row(k, text::name(k, "id_work"), Some(text::hint(k, "ed25519 · in the agent")), Some(quiet("Show", Place::Inspector).build(k))))
-            .row(pressable::<S>(k, item_row(k, text::name(k, "github"), Some(text::hint(k, "Pressable row")), None), "github", false, nothing()))
+            .row(item_row(text::name(k, "id_work"), Some(text::hint(k, "ed25519 · in the agent")), Some(quiet("Show", Place::Inspector).build(k))))
+            .row(pressable::<S>(k, item_row(text::name(k, "github"), Some(text::hint(k, "Pressable row")), None), "github", false, nothing()))
             .build(k),
         Card::new("gallery-fields")
             .label("Form")

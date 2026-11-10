@@ -2,7 +2,7 @@
 //! confirmations before removing a host or trashing a key. All of them sit in the `ds` dialog
 //! frame; forms group their fields in cards.
 
-use rune::{El, ScrollSpec, TextEdit, Tx, col, row};
+use rune::{El, TextEdit, Tx, col, row};
 use rune_kit::{Checkbox, Kit, Placement, Select, TextInput, glyphs};
 
 use super::PLUS;
@@ -155,12 +155,12 @@ fn extra(f: &HostForm, k: &Kit) -> El {
             let remove = ds::icon_button(&glyphs::CLOSE, "Remove option", Place::Inspector).on_press(move |s: &mut App| s.remove_host_pair(i)).build(k).key(format!("host-extra-{i}-remove"));
             rows = rows.child(row().w_full().gap(space::S2).center_y().child(key).child(value.grow(1.0).min_w(0.0)).child(remove));
         }
-        // The scroll view clips at its edges, and a field's focus ring is drawn just outside the
-        // field: the rows get a little room inside it, and the view sits that much further out
-        // so the fields still line up with the rest of the form.
+        // The rows don't scroll on their own: the dialog body does, and a scroll view inside it
+        // would trap the wheel. A field's focus ring is drawn just outside the field, so the
+        // rows keep that much room around them (no clip cuts a ring) and sit that much further
+        // out, so the fields still line up with the rest of the form.
         let ring = size::FOCUS_RING;
-        let rows = rows.padding(ring);
-        card = card.row(col().w_full().mx(-ring).my(-ring).max_h(170.0 + 2.0 * ring).min_h(0.0).scroll(ScrollSpec { stick_bottom: false }).child(rows));
+        card = card.row(col().w_full().mx(-ring).my(-ring).child(rows.padding(ring)));
     }
     let add = ds::quiet("Add option", Place::Inspector).icon(&PLUS).on_press(|s: &mut App| s.add_host_pair()).build(k).key("host-extra-add");
     card.row(plain_row(with_hint(k, row().child(add), "Any ssh_config option: IdentitiesOnly, ForwardAgent, LocalForward, ServerAliveInterval…"))).build(k).expect("the add row")

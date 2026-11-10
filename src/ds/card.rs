@@ -68,7 +68,9 @@ impl Card {
     }
 }
 
-/// Label on the left (fixed width), value right-aligned; one line, the value truncates.
+/// Label on the left, value right-aligned; one line. The label column is `PAIR_LABEL` wide, or
+/// as wide as a longer label needs, so a label shows in full; the value takes the rest and
+/// truncates. Values share the card's right edge.
 pub fn pair_row(k: &Kit, label: impl Into<String>, value: El) -> El {
     pair_row_with(text::label(k, label), value)
 }
@@ -79,7 +81,7 @@ pub fn pair_row_with(label: El, value: El) -> El {
         .w_full()
         .gap(space::S2)
         .center_y()
-        .child(label.w(size::PAIR_LABEL))
+        .child(label.min_w(size::PAIR_LABEL))
         .child(row().grow(1.0).min_w(0.0).justify_end().child(value.shrink()))
 }
 
@@ -93,15 +95,27 @@ pub fn stacked_row_with(label: El, value: El) -> El {
     col().w_full().gap(space::S1).child(label).child(value)
 }
 
-/// A label and a value on one line; a value (`text`) too long for the right-hand column goes
-/// under the label at full width, where it wraps.
-pub fn value_row(label: El, value: El, text: &str) -> El {
-    const LONG: usize = 28;
-    if text.chars().count() > LONG { stacked_row_with(label, value) } else { pair_row_with(label, value) }
+/// Characters a pair row holds on one line in the narrowest inspector, label and value together,
+/// counted in the code face (12pt mono, the widest a row uses): 294 points of card row less the
+/// gap, at about 6.3 points a character.
+pub(super) const PAIR_LINE_CHARS: usize = 44;
+/// Characters the `PAIR_LABEL` column holds; a shorter label still takes the column.
+pub(super) const PAIR_LABEL_CHARS: usize = 19;
+
+/// A label and a value on one line; when the label (`label_text`) and the value (`value_text`)
+/// would not both fit in the narrowest inspector, the value goes under the label at full width,
+/// where it wraps. On one line the value truncates, its tooltip the whole value.
+pub fn value_row(label: El, label_text: &str, value: El, value_text: &str) -> El {
+    let label_chars = label_text.chars().count().max(PAIR_LABEL_CHARS);
+    if label_chars + value_text.chars().count() > PAIR_LINE_CHARS {
+        stacked_row_with(label, value)
+    } else {
+        pair_row_with(label, value.truncate().help(value_text.to_string()))
+    }
 }
 
 /// A name with an optional hint beneath it and an optional control on the right.
-pub fn item_row(_k: &Kit, name: El, hint: Option<El>, trailing: Option<El>) -> El {
+pub fn item_row(name: El, hint: Option<El>, trailing: Option<El>) -> El {
     let mut body = col().grow(1.0).min_w(0.0).child(name);
     if let Some(h) = hint {
         body = body.child(h);

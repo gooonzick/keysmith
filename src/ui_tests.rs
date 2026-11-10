@@ -304,6 +304,49 @@ fn long_values_stay_inside_the_inspector() {
     let (after, _) = h.rt.presented("inspector").unwrap();
     assert!(after[2] <= 400.0, "inspector is {} wide", after[2]);
     assert_eq!(after[2], before[2], "a long value leaves the inspector's width alone");
+
+    // A dotted name has no break opportunity: the title still breaks inside the pane.
+    let dotted = "internal.services.verylongcompanydomain.example.corp.net";
+    h.rewrite(&format!("{CONFIG}\nHost {dotted}\n  HostName 10.0.0.9\n"));
+    h.rt.state.select_host((0, 2));
+    h.rt.invalidate();
+    h.settle();
+    let (pane, _) = h.rt.presented("inspector").unwrap();
+    // The list row shows the name too; the title is the one in the inspector.
+    let title = h.rt.elements().into_iter().find(|e| !e.exiting && e.text.as_deref() == Some(dotted) && e.rect[0] >= pane[0]).expect("the title");
+    assert!(title.rect[0] + title.rect[2] <= pane[0] + pane[2], "the title ends at {}, the inspector at {}", title.rect[0] + title.rect[2], pane[0] + pane[2]);
+    // The box keeps the pane's width either way; text that doesn't break runs past it on one
+    // line. Wider than the box, it must take more lines than one.
+    let style = crate::ds::ty::title(&rune_kit::Kit::neutral(false));
+    assert!(rune::text::measure(dotted, &[], style, None).0 > title.rect[2], "the name is wider than the pane");
+    assert!(title.rect[3] >= 2.0 * style.line_height, "the title breaks inside the pane: {:?}", title.rect);
+}
+
+#[test]
+fn option_names_show_in_full() {
+    use crate::ds::ty;
+    let mut h = Harness::new();
+    let names = [("StrictHostKeyChecking", "yes"), ("ServerAliveCountMax", "3"), ("PubkeyAcceptedAlgorithms", "+ssh-rsa"), ("KbdInteractiveAuthentication", "no")];
+    let opts: String = names.iter().map(|(n, v)| format!("  {n} {v}\n")).collect();
+    h.rewrite(&format!("{CONFIG}\nHost opts\n  HostName 10.0.0.7\n{opts}"));
+    h.rt.state.select_host((0, 2));
+    let k = rune_kit::Kit::neutral(false);
+    // The widest inspector and the narrowest.
+    for width in [crate::ds::size::INSPECTOR_MAX, crate::ds::size::INSPECTOR_MIN] {
+        h.rt.state.inspector.set_width(width);
+        h.rt.invalidate();
+        h.settle();
+        let (card, _) = h.rt.presented("card-options").expect("the options card");
+        for (name, value) in names {
+            let label = h.rt.elements().into_iter().find(|e| !e.exiting && e.text.as_deref() == Some(name)).unwrap_or_else(|| panic!("{name} is shown"));
+            let natural = rune::text::advance(name, ty::code(&k));
+            assert!(label.rect[2] >= natural, "at {width}: {name} is {} wide, its text {natural}", label.rect[2]);
+            assert!(label.rect[0] + label.rect[2] <= card[0] + card[2], "at {width}: {name} ends at {}, the card at {}", label.rect[0] + label.rect[2], card[0] + card[2]);
+            let v = h.rt.elements().into_iter().find(|e| !e.exiting && e.text.as_deref() == Some(value)).unwrap_or_else(|| panic!("{value} is shown"));
+            assert!(v.rect[1] < label.rect[1] + label.rect[3], "at {width}: {name} {value} stays on one line");
+            assert!(v.rect[0] + v.rect[2] <= card[0] + card[2], "at {width}: {value} ends inside the card");
+        }
+    }
 }
 
 #[test]
@@ -521,7 +564,15 @@ fn inspector_hides_in_a_narrow_window() {
     use crate::ds::size;
     let mut h = Harness::sized((860.0, 540.0));
     h.settle();
-    assert!(h.rt.find("inspector").is_none(), "860 wide: the list keeps its room and the inspector goes");
+    assert!(h.rt.find("inspector").is_some(), "the minimum window with the default sidebar shows all three panes");
+    let (list, _) = h.rt.presented("hosts-page").expect("the list");
+    assert!(list[2] > 0.0, "the list keeps some room: {list:?}");
+    // A wider sidebar leaves no room: the inspector goes first.
+    let widest = h.rt.state.sidebar.max_width();
+    h.rt.state.sidebar.set_width(widest);
+    h.rt.invalidate();
+    h.settle();
+    assert!(h.rt.find("inspector").is_none(), "a {widest} sidebar at 860: the list keeps its room and the inspector goes");
     assert!(h.rt.find("host-0-0").is_some(), "the list is still there");
     h.rt.set_viewport((1200.0, 760.0), 2.0);
     h.settle();

@@ -142,7 +142,7 @@ impl ListRow {
     /// The parent must stretch its children (a `Page` list does).
     pub fn build<S: 'static>(self, k: &Kit, on_press: impl Fn(&mut S) + 'static) -> El {
         let height = if self.meta.is_some() { size::ROW_2 } else { size::ROW_1 };
-        let mut body = col().grow(1.0).min_w(0.0).child(text::name(k, self.name.clone()).key(format!("{}-name", self.key)));
+        let mut body = col().grow(1.0).min_w(size::ROW_NAME_MIN).child(text::name(k, self.name.clone()).key(format!("{}-name", self.key)));
         if let Some(m) = self.meta {
             body = body.child(text::label(k, m));
         }
@@ -164,7 +164,8 @@ impl ListRow {
         }
         r = r.child(body);
         if !self.tags.is_empty() {
-            r = r.child(row().gap(space::S1).center_y().children(self.tags));
+            // Tags give way to the name: past `ROW_NAME_MIN` they narrow and are cut at the end.
+            r = r.child(row().shrink().gap(space::S1).center_y().clip_rounded(radius::TAG).children(self.tags));
         }
         r = if self.selected { r.fill(color::selected(k)) } else { r.hover(color::hover(k)) };
         if self.dim { r.dim(motion::DIM) } else { r }

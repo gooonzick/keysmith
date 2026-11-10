@@ -1,7 +1,7 @@
 //! The keys page: the keys in `~/.ssh` with the agent above them, and the inspector with one
 //! key's fingerprint, public half, the hosts that use it and what can be done to it.
 
-use rune::{El, Tx, col, row};
+use rune::{El, Tx, row};
 use rune_kit::shell::Toolbar;
 use rune_kit::Kit;
 
@@ -108,7 +108,7 @@ fn key_row(s: &App, key: &Key, k: &Kit, reduced: bool) -> El {
 
 fn inspector(s: &App, k: &Kit, layer: &mut Vec<El>, reduced: bool) -> El {
     let Some(key) = s.selected_key.as_deref().and_then(|n| s.key(n)) else {
-        return col().key("inspector").w_full().padding(ds::size::PANE_EDGE).child(ds::empty(k, "No key selected", "Click a key to see its fingerprint, public key and hosts."));
+        return Inspector::empty(k, "No key selected", "Select a key to see its details.");
     };
     let (left, right) = actions(s, key, k, layer);
     let mut ins = Inspector::new().subject(format!("key-{}", key.name)).title(key.name.clone()).meta(describe(key)).actions(left, Some(right));
@@ -201,7 +201,7 @@ fn details(key: &Key, k: &Kit) -> Option<El> {
         card = card.row(stacked_row(k, "Fingerprint", text::code(k, fp.clone()).key("key-fingerprint")));
     }
     if !key.comment.is_empty() {
-        card = card.row(value_row(text::label(k, "Comment"), text::code(k, key.comment.clone()).key("key-comment-value"), &key.comment));
+        card = card.row(value_row(text::label(k, "Comment"), "Comment", text::code(k, key.comment.clone()).key("key-comment-value"), &key.comment));
     }
     card.build(k)
 }
@@ -212,7 +212,7 @@ fn files(s: &App, key: &Key, k: &Kit) -> Option<El> {
     let rows = [&key.private, &key.public].into_iter().flatten().enumerate().map(|(i, p)| {
         let path = s.paths.tilde(p);
         let mode = crate::fsops::mode(p).map(|m| text::code(k, format!("{m:o}")));
-        item_row(k, text::path(k, path.clone()).help(path), None, mode).key(format!("key-file-{i}"))
+        item_row(text::path(k, path.clone()).help(path), None, mode).key(format!("key-file-{i}"))
     });
     Card::new("card-files").label("Files").rows(rows).build(k)
 }
@@ -227,7 +227,7 @@ fn used_by(s: &App, key: &Key, k: &Kit, reduced: bool) -> Option<El> {
     }
     card.rows(hosts.into_iter().enumerate().map(|(i, id)| {
         let name = s.section(id).patterns.clone();
-        ds::pressable(k, item_row(k, text::name(k, name.clone()), None, None), name, reduced, move |s: &mut App| s.show_host(id)).key(format!("key-host-{i}"))
+        ds::pressable(k, item_row(text::name(k, name.clone()), None, None), name, reduced, move |s: &mut App| s.show_host(id)).key(format!("key-host-{i}"))
     }))
     .build(k)
 }

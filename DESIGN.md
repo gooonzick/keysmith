@@ -29,7 +29,7 @@ One ladder. A screen picks a role, never a size. Functions in `ds::text` (styles
 
 | Role | `ds::text::` | Style | Colour | Used for |
 | --- | --- | --- | --- | --- |
-| Title | `title` | 15 semibold, line 20, wraps | base | The object's name in the inspector, dialog titles |
+| Title | `title` | 15 semibold, line 20, wraps (inside a word too long for a line) | base | The object's name in the inspector, dialog titles |
 | Value | `value` | 13 regular, line 20, truncates at the end | base | Values |
 | Name | `name` | Value in medium (500), truncates | base | Names in lists and item rows |
 | Body | `body` | Value, wraps | base | Sentences: descriptions, confirmation text, notices |
@@ -63,10 +63,11 @@ themes come from the kit.
   (lists, filters, status-line buttons) and `Bar` 28 (toolbar, dialog footers), both kit
   `ControlSize::Large`. Every button takes a `Place`; none picks a `ControlSize`.
 - `size::`: `ROW_1` 32 and `ROW_2` 44 (list rows with one and two lines; sidebar rows too),
-  `DOT` 7, `ICON` 16, `PANE_EDGE` 16, `PAIR_LABEL` 120 (a pair row's label column),
-  `FIELD_SHORT` 96 (a port beside an address), `FOCUS_RING` 3 (room a scroll view leaves for a
-  field's focus ring), `DIALOG_CONFIRM` 440, `DIALOG_FORM` 560, `DIALOG_TOP` 96,
-  `INSPECTOR_MIN` 352, `INSPECTOR_MAX` 400, `LIST_MIN` 480.
+  `DOT` 7, `ICON` 16, `PANE_EDGE` 16, `PAIR_LABEL` 120 (a pair row's label column, wider for a
+  longer label), `ROW_NAME_MIN` 120 (a list row's name, which its tags give way to),
+  `FIELD_SHORT` 96 (a port beside an address), `FOCUS_RING` 3 (room left around fields for their
+  focus ring), `DIALOG_CONFIRM` 440, `DIALOG_FORM` 560, `DIALOG_TOP` 96, `INSPECTOR_MIN` 352,
+  `INSPECTOR_MAX` 400, `LIST_MIN` 276.
 
 ## Layout
 
@@ -83,15 +84,24 @@ themes come from the kit.
    heights open in the same place.
 6. **One primary (contrast) button per view** (`ds::primary`): the toolbar's add button on a
    page, the main action in a dialog.
-7. **Long text**: names truncate at the end, paths in the middle, values in a stacked row wrap.
-   A value longer than 28 characters moves from a pair row to a stacked row (`value_row`).
+7. **Long text**: names truncate at the end, paths in the middle, values in a stacked row wrap,
+   titles wrap and break inside a word that does not fit. A pair row's label always shows in
+   full: its column is `PAIR_LABEL` or as wide as the label, and the value takes the rest and
+   truncates (its tooltip is the whole value). `value_row` keeps a row on one line only when it
+   fits the narrowest inspector: label (counted as at least 19 characters, the column) plus
+   value at most 44 characters; otherwise the value moves under the label (a stacked row). In a
+   list row the name keeps `ROW_NAME_MIN`; tags past it are cut.
 8. **Pane widths**: the sidebar is the kit's resizable pane (232 by default); the inspector is
    `INSPECTOR_MIN`..=`INSPECTOR_MAX` (352–400); the list takes the rest. When the window is
-   narrower than sidebar + `LIST_MIN` + `INSPECTOR_MIN`, the inspector hides, and it comes back
-   when the window widens (`ui::inspector_fits`).
+   narrower than sidebar + `LIST_MIN` + `INSPECTOR_MIN` (276 + 352), the inspector hides, and it
+   comes back when there is room again (`ui::inspector_fits`). 276 is the 860 minimum window less
+   the default sidebar and `INSPECTOR_MIN`, so the minimum window shows all three panes; a wider
+   sidebar hides the inspector first. The rule counts the inspector at its narrowest, so with
+   the inspector at 400 the list can get up to 48 less than `LIST_MIN`.
 9. **Words**: sentence case, no "please", an ellipsis is the "…" character (never `...`).
 10. **No empty frames**: a card with no rows is not drawn (`Card::build` returns `None`); an
-    inspector with nothing selected shows an empty state.
+    inspector with nothing selected shows an empty state (`Inspector::empty`): "Select a … to
+    see …".
 
 ## Motion
 
@@ -117,11 +127,11 @@ themes come from the kit.
 | `Page` | A list page: filter, count, notices, then rows or an empty state; the rows scroll. |
 | `ListRow` | A row in a `Page` list: icon, name, meta line, tags; 32 or 44 high. |
 | `empty` | What is missing and what to do, in place of a list or an inspector. |
-| `Inspector` | The right pane: title, meta, status, description, action row, notice, cards. |
+| `Inspector` | The right pane: title, meta, status, description, action row, notice, cards; `Inspector::empty` when nothing is selected. |
 | `Card` | A labelled group of rows on a bordered surface, hairlines between rows, an optional trailing control by the label. |
-| `pair_row` / `pair_row_with` | Label left, short value right, one line. |
+| `pair_row` / `pair_row_with` | Label left (in full), short value right, one line. |
 | `stacked_row` / `stacked_row_with` | Label above a long value that wraps: public keys, fingerprints, commands. |
-| `value_row` | A pair row that becomes a stacked row when the value is long. |
+| `value_row` | A pair row that becomes a stacked row when label and value don't fit one line. |
 | `item_row` | A name with a hint under it and a trailing status or button: keys of a host, hosts of a key, files. |
 | `pressable` | Makes a card row a button (hover, press scale). |
 | `field` | A form field: label above the input. |

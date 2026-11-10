@@ -23,6 +23,11 @@ impl Inspector {
         Self::default()
     }
 
+    /// The inspector with nothing selected: what is missing and what to do, on the pane's edge.
+    pub fn empty(k: &Kit, title: impl Into<String>, detail: impl Into<String>) -> El {
+        frame(super::empty(k, title, detail))
+    }
+
     /// What the inspector shows (a host's or key's id). When it changes, the old content fades
     /// out and the new fades in; with no subject the content just changes. The content is keyed
     /// `inspector-<id>`.
@@ -112,6 +117,11 @@ impl Inspector {
         if let Some(id) = self.subject {
             pane = pane.key(format!("inspector-{id}")).transition(Transition::opacity().springs(SpringPair::new(motion::swap(), motion::swap())));
         }
-        col().key("inspector").w_full().padding(size::PANE_EDGE).child(pane)
+        frame(pane)
     }
+}
+
+/// The pane's content edge around what the inspector shows, keyed `inspector`.
+fn frame(content: El) -> El {
+    col().key("inspector").w_full().padding(size::PANE_EDGE).child(content)
 }
