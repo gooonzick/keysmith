@@ -39,6 +39,12 @@ pub fn quiet(label: impl Into<String>, place: Place) -> Button {
     with(label, place, ButtonVariant::Ghost)
 }
 
+/// The ordinary button with a copy icon, which becomes a check while `copied` (the app clears it
+/// after `motion::COPY_CONFIRM_SECS`).
+pub fn copy_button(label: impl Into<String>, place: Place, copied: bool) -> Button {
+    button(label, place).icon(if copied { &glyphs::CHECK } else { &glyphs::COPY })
+}
+
 /// An icon-only button; `label` is its accessible name and tooltip.
 pub fn icon_button(icon: &'static Icon, label: impl Into<String>, place: Place) -> IconButton {
     let label = label.into();

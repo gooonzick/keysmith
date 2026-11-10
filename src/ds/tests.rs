@@ -398,3 +398,44 @@ mod dialog {
         assert_eq!(all.last().and_then(|e| e.key.as_deref()), Some("m"));
     }
 }
+
+mod motion_and_gallery {
+    use super::*;
+    use rune::{Cx, El, Env, Runtime, col};
+
+    fn gallery_view(_: &(), cx: &mut Cx<()>) -> El {
+        let k = Kit::neutral(cx.system_dark());
+        let mut layer = Vec::new();
+        let g = gallery::<()>(&k, &mut layer);
+        rune_kit::root(g, layer)
+    }
+
+    #[test]
+    fn gallery_renders_in_both_themes() {
+        for dark in [false, true] {
+            let mut rt = Runtime::new((), gallery_view, (1200.0, 760.0), Env { system_dark: dark, scale: 1.0 });
+            rt.frame(0.0);
+            assert!(rt.find("ds-gallery").is_some(), "no gallery (dark: {dark})");
+        }
+    }
+
+    fn subject_view(s: &u32, _: &mut Cx<u32>) -> El {
+        let k = Kit::neutral(false);
+        col().w_full().h_full().child(Inspector::new().subject(format!("obj{s}")).title(format!("Object {s}")).build(&k))
+    }
+
+    #[test]
+    fn inspector_body_fades_when_the_subject_changes() {
+        let mut rt = Runtime::new(0u32, subject_view, (400.0, 600.0), Env { system_dark: false, scale: 1.0 });
+        rt.frame(0.0);
+        assert_eq!(rt.presented("inspector-obj0").map(|p| p.1), Some(1.0), "the first body shows at once");
+        rt.update(|s, _| *s = 1);
+        rt.frame(1.0 / 60.0);
+        let fading = rt.presented("inspector-obj1").expect("the new body").1;
+        assert!(fading < 1.0, "the new body is at {fading} straight away");
+        for _ in 0..30 {
+            rt.frame(1.0 / 60.0);
+        }
+        assert_eq!(rt.presented("inspector-obj1").map(|p| p.1), Some(1.0));
+    }
+}

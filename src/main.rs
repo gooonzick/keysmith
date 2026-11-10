@@ -18,6 +18,7 @@ mod ui_tests;
 use rune::{AppSpec, Tx, Waker};
 
 use crate::app::{App, PassPurpose};
+use crate::ds::motion::COPY_CONFIRM_SECS;
 use crate::paths::Paths;
 
 fn init() -> App {
@@ -50,6 +51,17 @@ fn poll(s: &mut App, clock: f64, tx: &mut Tx) -> bool {
         (None, Some(_)) => s.notice_at = None,
         _ => {}
     }
+    match &mut s.copied_at {
+        Some((_, at)) if at.is_nan() => {
+            *at = clock;
+            tx.wake_after(std::time::Duration::from_secs_f64(COPY_CONFIRM_SECS));
+        }
+        Some((_, at)) if clock - *at >= COPY_CONFIRM_SECS => {
+            s.copied_at = None;
+            changed = true;
+        }
+        _ => {}
+    }
     changed
 }
 
@@ -58,6 +70,7 @@ type Scene = (&'static str, fn(&mut App));
 
 static SCENES: &[Scene] = &[
     ("hosts", |_| {}),
+    ("ds", |s| s.gallery = true),
     ("host-form", |s| {
         if let Some(id) = s.selected_host_id() {
             s.open_edit_host(id);

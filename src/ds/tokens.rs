@@ -107,6 +107,10 @@ pub mod color {
     pub fn text_faint(k: &Kit) -> Color {
         k.c.text_faint
     }
+    /// The pane a page or inspector sits on.
+    pub fn pane(k: &Kit) -> Color {
+        k.c.bg_base
+    }
     pub fn card(k: &Kit) -> Color {
         k.c.layer_01
     }

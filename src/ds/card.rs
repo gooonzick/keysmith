@@ -4,7 +4,7 @@
 use rune::{El, col, el, row};
 use rune_kit::Kit;
 
-use super::{color, radius, size, space, text};
+use super::{color, motion, radius, size, space, text};
 
 /// A labelled group of rows. `build` returns `None` when there are no rows, so an empty group
 /// leaves no empty frame behind.
@@ -104,6 +104,18 @@ pub fn item_row(_k: &Kit, name: El, hint: Option<El>, trailing: Option<El>) -> E
         r = r.child(t);
     }
     r
+}
+
+/// Makes a card row (an `item_row`, say) a button: it highlights under the pointer and shrinks a
+/// little while pressed, unless motion is `reduced`.
+pub fn pressable<S: 'static>(k: &Kit, row: El, label: impl Into<String>, reduced: bool, on_press: impl Fn(&mut S) + 'static) -> El {
+    row.role("button")
+        .label(label)
+        .focusable(true)
+        .radius(radius::CONTROL)
+        .hover(color::hover(k))
+        .press_scale(motion::press_scale(reduced))
+        .on_press(on_press)
 }
 
 /// A form field: label above the input.

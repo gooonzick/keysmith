@@ -1,12 +1,13 @@
 //! The inspector: a title block, one row of actions, a notice and a card, stacked on one edge.
 
-use rune::{El, col, row};
+use rune::{El, SpringPair, Transition, col, row};
 use rune_kit::Kit;
 
-use super::{size, space, text};
+use super::{motion, size, space, text};
 
 #[derive(Default)]
 pub struct Inspector {
+    subject: Option<String>,
     title: Option<String>,
     meta: Option<String>,
     status: Option<El>,
@@ -20,6 +21,14 @@ pub struct Inspector {
 impl Inspector {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// What the inspector shows (a host's or key's id). When it changes, the old content fades
+    /// out and the new fades in; with no subject the content just changes. The content is keyed
+    /// `inspector-<id>`.
+    pub fn subject(mut self, id: impl Into<String>) -> Self {
+        self.subject = Some(id.into());
+        self
     }
 
     pub fn title(mut self, s: impl Into<String>) -> Self {
@@ -64,7 +73,7 @@ impl Inspector {
     }
 
     pub fn build(self, k: &Kit) -> El {
-        let mut pane = col().key("inspector").w_full().padding(size::PANE_EDGE).gap(space::S4);
+        let mut pane = col().w_full().gap(space::S4);
         let mut head = col().w_full().gap(space::S1);
         let mut any = false;
         if let Some(t) = self.title {
@@ -99,6 +108,10 @@ impl Inspector {
         for c in self.cards.into_iter().flatten() {
             pane = pane.child(c);
         }
-        pane
+        // Opacity only, so it stays under reduced motion.
+        if let Some(id) = self.subject {
+            pane = pane.key(format!("inspector-{id}")).transition(Transition::opacity().springs(SpringPair::new(motion::swap(), motion::exit())));
+        }
+        col().key("inspector").w_full().padding(size::PANE_EDGE).child(pane)
     }
 }

@@ -51,6 +51,8 @@ pub struct App {
     pub inspector: PaneState,
     pub page: Page,
     pub filter: TextEdit,
+    /// Show the design system's gallery instead of the app (`--scene ds`).
+    pub gallery: bool,
 
     // ~/.ssh/config and what it includes.
     pub docs: Vec<Document>,
@@ -81,6 +83,9 @@ pub struct App {
     /// When the notice went up, on the app clock.
     pub notice_at: Option<f64>,
     pub undo: Option<(String, Undo)>,
+    /// What was just copied and when, on the app clock: its Copy button shows a check until
+    /// `poll` clears it. The time is NaN until `poll` stamps it.
+    pub copied_at: Option<(String, f64)>,
     /// What the change being made can be undone with, until it is reported.
     pending_undo: Option<Undo>,
 
@@ -95,6 +100,7 @@ impl App {
             sidebar: PaneState::new(232.0).range(180.0, 380.0),
             inspector: PaneState::new(400.0).range(320.0, 640.0),
             page: Page::Hosts,
+            gallery: false,
             filter: TextEdit::new(""),
             docs: Vec::new(),
             config_errors: Vec::new(),
@@ -117,6 +123,7 @@ impl App {
             notice: None,
             notice_at: None,
             undo: None,
+            copied_at: None,
             pending_undo: None,
             waker: None,
             watcher: None,
@@ -225,6 +232,16 @@ impl App {
     pub fn notify(&mut self, title: impl Into<String>, detail: impl Into<String>, error: bool) {
         self.notice = Some(Notice { title: title.into(), detail: detail.into(), error, undo: false });
         self.notice_at = None;
+    }
+
+    /// Confirms a copy of `what` on its button.
+    pub fn copied(&mut self, what: impl Into<String>) {
+        self.copied_at = Some((what.into(), f64::NAN));
+    }
+
+    /// Whether `what` was just copied.
+    pub fn just_copied(&self, what: &str) -> bool {
+        self.copied_at.as_ref().is_some_and(|(w, _)| w == what)
     }
 
     /// Reports a change that Undo can take back.

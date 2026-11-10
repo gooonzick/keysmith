@@ -234,3 +234,15 @@ fn a_dialogs_dropdown_opens_under_its_field() {
     h.click("option0");
     assert_eq!(h.rt.state.host_form.as_ref().unwrap().identity.text, "~/.ssh/id_work");
 }
+
+#[test]
+fn copy_button_shows_a_check_then_reverts() {
+    let mut h = Harness::new();
+    h.rt.poll = Some(crate::poll);
+    h.click("host-copy");
+    assert!(h.rt.state.copied_at.is_some(), "the button shows the check");
+    for _ in 0..90 {
+        h.rt.frame(1.0 / 60.0);
+    }
+    assert!(h.rt.state.copied_at.is_none(), "the check goes after a second or so");
+}

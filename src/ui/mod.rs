@@ -41,6 +41,10 @@ pub fn host_key((d, s): (usize, usize)) -> String {
 pub fn view(s: &App, cx: &mut Cx<App>) -> El {
     let k = Kit::neutral(cx.system_dark());
     let mut layer = Vec::new();
+    if s.gallery {
+        let gallery = crate::ds::gallery::<App>(&k, &mut layer);
+        return rune_kit::root(gallery, layer);
+    }
     let (main, toolbar, inspector) = match s.page {
         Page::Hosts => hosts::page(s, &k, &mut layer),
         Page::Keys => keys::page(s, &k, &mut layer),

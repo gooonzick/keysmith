@@ -7,6 +7,7 @@ use rune_kit::{Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant
 
 use super::{DOWN, PLUS, PULSE, REFRESH, TERMINAL, UP, dot, empty, field, heading, host_key, inspector_body, kv_row, mono, notice_line, plural, scroll_pane, tag};
 use crate::app::App;
+use crate::ds::{self, Place};
 use crate::paths::Paths;
 use crate::sshconfig::{Kind, Section, canonical};
 
@@ -271,12 +272,11 @@ fn connect(s: &App, alias: &str, k: &Kit) -> El {
     let (a1, a2) = (alias.to_string(), alias.to_string());
     let testing = s.testing.as_deref() == Some(alias);
     let mut buttons = row().gap(6.0).center_y().flex_wrap().child(
-        small("Copy")
-            .icon(&glyphs::COPY)
+        ds::copy_button("Copy", Place::Inspector, s.just_copied(&command))
             .help(format!("Copy “{command}”"))
             .on_press_tx(move |s: &mut App, tx: &mut Tx| {
                 tx.copy(command.clone());
-                s.notify(format!("Copied “{command}”"), "", false);
+                s.copied(command.clone());
             })
             .build(k)
             .key("host-copy"),
