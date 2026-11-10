@@ -7,7 +7,7 @@ use rune_kit::{Checkbox, Kit, Placement, Select, TextInput, glyphs};
 
 use super::PLUS;
 use crate::app::{App, Confirm, HostForm, NewKeyForm, PassForm, PassPurpose};
-use crate::ds::{self, Card, DialogFrame, DialogKind, Place, field, field_pair, plain_row, space, text};
+use crate::ds::{self, Card, DialogFrame, DialogKind, Place, field, field_pair, plain_row, size, space, text};
 use crate::keys::KeyType;
 use crate::sshconfig::Kind;
 
@@ -84,7 +84,7 @@ pub fn host_form(s: &App, k: &Kit, layer: &mut Vec<El>) {
         .row(field_pair(
             field(k, "Address (HostName)", input(&f.hostname, "Address", "10.0.0.5 or server.example.com", "host-hostname", k, |s| &mut host_mut(s).hostname, save)),
             field(k, "Port", input(&f.port, "Port", "22", "host-port", k, |s| &mut host_mut(s).port, save)),
-            Some(96.0),
+            Some(size::FIELD_SHORT),
         ))
         .row(field_pair(
             field(k, "User", input(&f.user, "User", "deploy", "host-user", k, |s| &mut host_mut(s).user, save)),
@@ -158,9 +158,9 @@ fn extra(f: &HostForm, k: &Kit) -> El {
         // The scroll view clips at its edges, and a field's focus ring is drawn just outside the
         // field: the rows get a little room inside it, and the view sits that much further out
         // so the fields still line up with the rest of the form.
-        const RING: f32 = 3.0;
-        let rows = rows.padding(RING);
-        card = card.row(col().w_full().mx(-RING).my(-RING).max_h(170.0 + 2.0 * RING).min_h(0.0).scroll(ScrollSpec { stick_bottom: false }).child(rows));
+        let ring = size::FOCUS_RING;
+        let rows = rows.padding(ring);
+        card = card.row(col().w_full().mx(-ring).my(-ring).max_h(170.0 + 2.0 * ring).min_h(0.0).scroll(ScrollSpec { stick_bottom: false }).child(rows));
     }
     let add = ds::quiet("Add option", Place::Inspector).icon(&PLUS).on_press(|s: &mut App| s.add_host_pair()).build(k).key("host-extra-add");
     card.row(plain_row(with_hint(k, row().child(add), "Any ssh_config option: IdentitiesOnly, ForwardAgent, LocalForward, ServerAliveInterval…"))).build(k).expect("the add row")

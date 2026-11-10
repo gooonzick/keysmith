@@ -3,7 +3,7 @@
 
 use rune::{El, Tx, col, row};
 use rune_kit::shell::Toolbar;
-use rune_kit::{Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant, Kit};
+use rune_kit::Kit;
 
 use super::{IMPORT, KEY, PLUS, REFRESH, plural};
 use crate::app::{App, PassPurpose};
@@ -17,22 +17,11 @@ pub fn page(s: &App, k: &Kit, layer: &mut Vec<El>, reduced: bool) -> (El, Toolba
 fn toolbar(k: &Kit) -> Toolbar {
     Toolbar::new().title("Keys").trailing(
         row()
-            .gap(6.0)
+            .gap(ds::space::S2)
             .center_y()
+            .child(ds::icon_button(&REFRESH, "Reload", Place::Bar).help("Reload the keys and the agent").shortcut("cmd+r").on_press(|s: &mut App| s.rescan()).build(k).key("rescan"))
             .child(
-                IconButton::new(&REFRESH)
-                    .variant(IconButtonVariant::GhostMuted)
-                    .label("Reload")
-                    .help("Reload the keys and the agent")
-                    .shortcut("cmd+r")
-                    .on_press(|s: &mut App| s.rescan())
-                    .build(k)
-                    .key("rescan"),
-            )
-            .child(
-                IconButton::new(&IMPORT)
-                    .variant(IconButtonVariant::GhostMuted)
-                    .label("Import a key…")
+                ds::icon_button(&IMPORT, "Import a key…", Place::Bar)
                     .help("Copy a private key from elsewhere into ~/.ssh")
                     .on_press_tx(|_: &mut App, tx: &mut Tx| {
                         let options = rune::FileDialogOptions { title: "Choose a private key".into(), ..Default::default() };
@@ -46,10 +35,8 @@ fn toolbar(k: &Kit) -> Toolbar {
                     .key("import-key"),
             )
             .child(
-                Button::new("New key")
+                ds::primary("New key", Place::Bar)
                     .icon(&PLUS)
-                    .variant(ButtonVariant::Contrast)
-                    .control_size(ControlSize::Regular)
                     .help("Make a key pair with ssh-keygen")
                     .shortcut("cmd+n")
                     .on_press(|s: &mut App| s.open_new_key())

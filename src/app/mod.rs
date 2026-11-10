@@ -12,6 +12,7 @@ use notify::{RecursiveMode, Watcher};
 use rune::{Latest, TextEdit, Waker};
 use rune_kit::shell::PaneState;
 
+use crate::ds::size;
 use crate::fsops;
 use crate::keys::{self as keyops, Agent, Key};
 use crate::paths::Paths;
@@ -102,7 +103,7 @@ impl App {
     pub fn new(paths: Paths) -> App {
         let mut app = App {
             sidebar: PaneState::new(232.0).range(180.0, 380.0),
-            inspector: PaneState::new(400.0).range(320.0, 640.0),
+            inspector: PaneState::new(size::INSPECTOR_MAX).range(size::INSPECTOR_MIN, size::INSPECTOR_MAX),
             page: Page::Hosts,
             gallery: false,
             filter: TextEdit::new(""),

@@ -2,6 +2,7 @@
 //! `ds` take every number and colour from here, so a change lands in one place.
 
 use rune::{Color, Spring, TextStyle};
+use rune_kit::shell::PaneMotion;
 use rune_kit::{ControlSize, Kit};
 
 /// Spacing scale in points.
@@ -32,10 +33,18 @@ pub mod size {
     pub const DIALOG_CONFIRM: f32 = 440.0;
     pub const DIALOG_FORM: f32 = 560.0;
     pub const DIALOG_TOP: f32 = 96.0;
-    pub const INSPECTOR_MIN: f32 = 320.0;
+    /// The inspector's narrowest width: the Keys action row ("Remove from agent", "…", "Move to
+    /// Trash…") fits at 352, not at the 320 first planned.
+    pub const INSPECTOR_MIN: f32 = 352.0;
     pub const INSPECTOR_MAX: f32 = 400.0;
+    /// The list's narrowest width; below sidebar + this + `INSPECTOR_MIN` the inspector hides.
+    pub const LIST_MIN: f32 = 480.0;
     pub const PANE_EDGE: f32 = 16.0;
     pub const PAIR_LABEL: f32 = 120.0;
+    /// A short field beside a wide one: a port.
+    pub const FIELD_SHORT: f32 = 96.0;
+    /// How far a focused field's ring reaches outside the field.
+    pub const FOCUS_RING: f32 = 3.0;
 }
 
 /// Where a control sits, which fixes its height: 24 in the inspector, 28 in lists, filters,
@@ -48,17 +57,11 @@ pub enum Place {
 }
 
 impl Place {
+    /// The kit's size for a control here: `Regular` is 24 points tall, `Large` 28.
     pub fn control(self) -> ControlSize {
         match self {
             Place::Inspector => ControlSize::Regular,
             Place::List | Place::Bar => ControlSize::Large,
-        }
-    }
-
-    pub fn height(self) -> f32 {
-        match self {
-            Place::Inspector => 24.0,
-            Place::List | Place::Bar => 28.0,
         }
     }
 }
@@ -159,5 +162,10 @@ pub mod motion {
     /// Inspector content changing: ~150 ms.
     pub fn swap() -> Spring {
         Spring::new(0.15, 0.0)
+    }
+    /// Side panes opening and closing: ~300 ms for a 480-point pane, 150 to 300 ms by width;
+    /// contents fade only near closed. Under reduced motion the panes snap.
+    pub fn panes() -> PaneMotion {
+        PaneMotion::new().spring(Spring::new(0.3, 0.0)).scale_with_width(480.0, 0.15, 0.3).fade_tail(0.15)
     }
 }

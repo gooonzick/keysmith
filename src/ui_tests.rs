@@ -515,3 +515,19 @@ fn dialogs_open_at_once_from_the_keyboard() {
     let scrim = h.rt.presented("host-form-scrim").expect("the scrim").1;
     assert!(scrim < 1.0, "a click lets the dialog come in: {scrim}");
 }
+
+#[test]
+fn inspector_hides_in_a_narrow_window() {
+    use crate::ds::size;
+    let mut h = Harness::sized((860.0, 540.0));
+    h.settle();
+    assert!(h.rt.find("inspector").is_none(), "860 wide: the list keeps its room and the inspector goes");
+    assert!(h.rt.find("host-0-0").is_some(), "the list is still there");
+    h.rt.set_viewport((1200.0, 760.0), 2.0);
+    h.settle();
+    assert!(h.rt.find("inspector").is_some(), "1200 wide: the inspector is back");
+    let (pane, _) = h.rt.presented("inspector").unwrap();
+    assert!(pane[2] >= size::INSPECTOR_MIN && pane[2] <= size::INSPECTOR_MAX, "inspector is {} wide", pane[2]);
+    let s = &h.rt.state.inspector;
+    assert_eq!((s.min_width(), s.max_width()), (size::INSPECTOR_MIN, size::INSPECTOR_MAX), "dragging stays within the range");
+}

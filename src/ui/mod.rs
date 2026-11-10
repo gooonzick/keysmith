@@ -5,11 +5,12 @@ mod dialogs;
 mod hosts;
 mod keys;
 
-use rune::{Chrome, Cx, El, Icon, KeyEvent, ScrollSpec, Spring, Tx, col};
-use rune_kit::shell::{self, PaneMotion, Sidebar, SidebarRow, SidebarSection, SidebarToggle, SplitView};
-use rune_kit::{ControlSize, Kit, Toast, ToastRegion, glyphs};
+use rune::{Chrome, Cx, El, Icon, KeyEvent, ScrollSpec, Tx, col};
+use rune_kit::shell::{self, Sidebar, SidebarRow, SidebarSection, SidebarToggle, SplitView};
+use rune_kit::{Kit, Toast, ToastRegion, glyphs};
 
 use crate::app::{App, Page};
+use crate::ds::{Place, motion, size, space};
 use crate::keys::Agent;
 
 macro_rules! icon {
@@ -62,26 +63,36 @@ pub fn view(s: &App, cx: &mut Cx<App>) -> El {
         toast = toast.icon(&k, if n.error { &glyphs::CIRCLE_X } else { &glyphs::CHECK });
         layer.push(ToastRegion::new().toast(toast.build(&k)).build(&k));
     }
-    let split = SplitView::new(main)
-        .sidebar(&s.sidebar, |s: &mut App| &mut s.sidebar, sidebar(s, &k))
-        .inspector(&s.inspector, |s: &mut App| &mut s.inspector, scroll_pane("inspector-scroll", inspector))
+    let mut split = SplitView::new(main).sidebar(&s.sidebar, |s: &mut App| &mut s.sidebar, sidebar(s, &k));
+    if inspector_fits(s, cx) {
+        split = split.inspector(&s.inspector, |s: &mut App| &mut s.inspector, scroll_pane("inspector-scroll", inspector));
+    }
+    let split = split
         .toolbar(toolbar)
         .titlebar_inset(cx.titlebar_inset())
-        .frame_inset(8.0)
+        .frame_inset(space::S2)
         .toolbar_in_panel()
-        .sidebar_padding(18.0, 10.0)
-        .sidebar_toggle(SidebarToggle::new().size(ControlSize::Large).past_lights(16.0).edge(18.0).gap(4.0).in_header())
-        .pane_motion(PaneMotion::new().spring(Spring::new(0.3, 0.0)).scale_with_width(480.0, 0.15, 0.3).fade_tail(0.15))
+        .sidebar_padding(space::S2, space::S2)
+        .sidebar_toggle(SidebarToggle::new().size(Place::Bar.control()).past_lights(space::S4).edge(space::S4).gap(space::S1).in_header())
+        .pane_motion(motion::panes())
         .reduced_motion(cx.is_reduced_motion())
         .build(&k);
     rune_kit::root(split, layer)
+}
+
+/// Whether the window has room for the inspector beside the sidebar and a list of at least
+/// `size::LIST_MIN`. In a narrower window the inspector goes first, and comes back when the
+/// window widens. Before the first layout there is no width yet, and the inspector shows.
+fn inspector_fits(s: &App, cx: &Cx<App>) -> bool {
+    let needed = s.sidebar.shown_width() + size::LIST_MIN + size::INSPECTOR_MIN;
+    cx.layout_with("kit-root", move |r| r[2] >= needed).unwrap_or(true)
 }
 
 fn sidebar(s: &App, k: &Kit) -> El {
     let hosts = SidebarRow::new("Hosts")
         .icon(&SERVER)
         .badge(s.host_count().to_string())
-        .height(32.0)
+        .height(size::ROW_1)
         .selected(s.page == Page::Hosts && s.file_filter.is_none())
         .on_select(|s: &mut App, _| s.set_file_filter(None))
         .build(k)
@@ -89,7 +100,7 @@ fn sidebar(s: &App, k: &Kit) -> El {
     let keys = SidebarRow::new("Keys")
         .icon(&KEY)
         .badge(s.keys.len().to_string())
-        .height(32.0)
+        .height(size::ROW_1)
         .selected(s.page == Page::Keys)
         .on_select(|s: &mut App, _| s.open_page(Page::Keys))
         .build(k)
@@ -99,7 +110,7 @@ fn sidebar(s: &App, k: &Kit) -> El {
         Agent::Running(l) => ("ssh-agent".to_string(), format!("{} key{} loaded", l.len(), if l.len() == 1 { "" } else { "s" })),
         Agent::Down(_) => ("ssh-agent".to_string(), "not running".to_string()),
     };
-    let agent = SidebarRow::new(agent_title).icon(&AGENT).subtitle(agent_sub).height(40.0).select_only().on_select(|s: &mut App, _| s.open_page(Page::Keys)).build(k).key("nav-agent");
+    let agent = SidebarRow::new(agent_title).icon(&AGENT).subtitle(agent_sub).height(size::ROW_2).select_only().on_select(|s: &mut App, _| s.open_page(Page::Keys)).build(k).key("nav-agent");
 
     let files = s.docs.iter().enumerate().map(|(i, d)| {
         let path = d.path.clone();
@@ -107,7 +118,7 @@ fn sidebar(s: &App, k: &Kit) -> El {
         SidebarRow::new(d.path.file_name().map_or_else(|| s.paths.tilde(&d.path), |n| n.to_string_lossy().into_owned()))
             .icon(&glyphs::FILE_TEXT)
             .subtitle(format!("{} · {n} host{}", s.paths.tilde(d.path.parent().unwrap_or(&d.path)), if n == 1 { "" } else { "s" }))
-            .height(40.0)
+            .height(size::ROW_2)
             .selected(s.page == Page::Hosts && s.file_filter.as_ref() == Some(&d.path))
             .on_select(move |s: &mut App, _| s.set_file_filter(Some(path.clone())))
             .build(k)
@@ -116,9 +127,9 @@ fn sidebar(s: &App, k: &Kit) -> El {
     Sidebar::new()
         .label("Keysmith")
         .inset(0.0)
-        .header_gap(4.0)
-        .header_padding(0.0, 12.0)
-        .row_gap(2.0)
+        .header_gap(space::S1)
+        .header_padding(0.0, space::S3)
+        .row_gap(space::ROW_GAP)
         .header(hosts)
         .header(keys)
         .header(agent)

@@ -126,7 +126,7 @@ fn cards<S: 'static>(k: &Kit) -> Vec<Option<El>> {
         Card::new("gallery-fields")
             .label("Form")
             .row(field(k, "Name", input("work")))
-            .row(field_pair(field(k, "Address", input("10.0.0.5")), field(k, "Port", input("22")), Some(96.0)))
+            .row(field_pair(field(k, "Address", input("10.0.0.5")), field(k, "Port", input("22")), Some(size::FIELD_SHORT)))
             .row(plain_row(row().gap(space::S2).child(button("Add option", Place::Inspector).build(k))))
             .build(k),
     ]

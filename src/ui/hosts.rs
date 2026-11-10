@@ -5,7 +5,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 
 use rune::{El, Tx, col, row};
 use rune_kit::shell::Toolbar;
-use rune_kit::{Button, ButtonVariant, ControlSize, IconButton, IconButtonVariant, Kit};
+use rune_kit::Kit;
 
 use super::{PLUS, PULSE, REFRESH, SERVER, TERMINAL, host_key, plural};
 use crate::app::{App, HostRef};
@@ -24,12 +24,10 @@ fn toolbar(s: &App, k: &Kit) -> Toolbar {
     };
     Toolbar::new().title(title).trailing(
         row()
-            .gap(6.0)
+            .gap(ds::space::S2)
             .center_y()
             .child(
-                IconButton::new(&REFRESH)
-                    .variant(IconButtonVariant::GhostMuted)
-                    .label("Reload")
+                ds::icon_button(&REFRESH, "Reload", Place::Bar)
                     .help("Reload the config, keys and agent")
                     .shortcut("cmd+r")
                     .on_press(|s: &mut App| {
@@ -40,10 +38,8 @@ fn toolbar(s: &App, k: &Kit) -> Toolbar {
                     .key("rescan"),
             )
             .child(
-                Button::new("Add host")
+                ds::primary("Add host", Place::Bar)
                     .icon(&PLUS)
-                    .variant(ButtonVariant::Contrast)
-                    .control_size(ControlSize::Regular)
                     .help("Add a Host section to your SSH config")
                     .shortcut("cmd+n")
                     .on_press(|s: &mut App| s.open_add_host())

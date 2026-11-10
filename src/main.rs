@@ -13,6 +13,8 @@ mod paths;
 mod sshconfig;
 mod ui;
 #[cfg(test)]
+mod ui_lint;
+#[cfg(test)]
 mod ui_tests;
 
 use rune::{AppSpec, Tx, Waker};

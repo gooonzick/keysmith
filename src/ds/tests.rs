@@ -42,9 +42,23 @@ fn roles_differ_in_both_themes() {
 
 #[test]
 fn places() {
-    assert_eq!(Place::Inspector.height(), 24.0);
-    assert_eq!(Place::List.height(), 28.0);
-    assert_eq!(Place::Bar.height(), 28.0);
+    use rune::{Env, Runtime, row};
+    fn view(_: &(), _: &mut rune::Cx<()>) -> rune::El {
+        let k = Kit::neutral(false);
+        let place = |p: Place, key: &str| button("Edit", p).build(&k).key(key.to_string());
+        row().child(place(Place::Inspector, "inspector")).child(place(Place::List, "list")).child(place(Place::Bar, "bar"))
+    }
+    let mut rt = Runtime::new((), view, (400.0, 100.0), Env { system_dark: false, scale: 1.0 });
+    rt.frame(0.0);
+    let h = |key: &str| rt.presented(key).unwrap_or_else(|| panic!("no {key}")).0[3];
+    // The spec's 32 for bars does not exist in rune-kit; bars use 28 (DESIGN.md, exceptions).
+    assert_eq!([h("inspector"), h("list"), h("bar")], [24.0, 28.0, 28.0]);
+}
+
+#[test]
+fn pane_widths() {
+    // 352, not the spec's first 320: the Keys action row with "Remove from agent" needs it.
+    assert_eq!([size::INSPECTOR_MIN, size::INSPECTOR_MAX, size::LIST_MIN], [352.0, 400.0, 480.0]);
 }
 
 mod blocks {

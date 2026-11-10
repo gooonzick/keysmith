@@ -66,7 +66,7 @@ cargo test
 cargo clippy --all-targets -- -D warnings
 ```
 
-Tests run against a throwaway home and their own `ssh-agent`, never yours. `KEYSMITH_HOME=dir cargo run -- --snap out.png --scene keys` renders a scene headless (`hosts`, `host-form`, `add-host`, `keys`, `new-key`, `passphrase`, `remove`).
+Tests run against a throwaway home and their own `ssh-agent`, never yours. `KEYSMITH_HOME=dir cargo run -- --snap out.png --scene keys` renders a scene headless (`hosts`, `host-form`, `add-host`, `keys`, `new-key`, `passphrase`, `remove`, and `ds`: every design-system block). Read [DESIGN.md](DESIGN.md) before any UI change.
 
 | Module | Owns |
 | --- | --- |
@@ -74,4 +74,5 @@ Tests run against a throwaway home and their own `ssh-agent`, never yours. `KEYS
 | `keys` | Scanning keys, `ssh-keygen`, `ssh-add`, the askpass script |
 | `fsops` | Atomic writes, backups, the trash |
 | `app` | State and actions; `ui` only reads it |
-| `ui` | The window, pages and dialogs |
+| `ds` | The design system: tokens, type and colour roles, blocks; depends only on Rune and rune-kit |
+| `ui` | The window, pages and dialogs, built from `ds` |
