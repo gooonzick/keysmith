@@ -72,8 +72,8 @@ mod blocks {
         shell(
             Card::new("card")
                 .label("Group")
-                .row(pair_row(&k, "Port", text::value(&k, "22")).key("r1-label"))
-                .row(stacked_row(&k, "Path", text::code(&k, "abc")).key("r2-label"))
+                .row(pair_row_with(text::label(&k, "Port").key("r1-label"), text::value(&k, "22")))
+                .row(stacked_row_with(text::label(&k, "Path").key("r2-label"), text::code(&k, "abc")))
                 .row(item_row(&k, text::name(&k, "work").key("r3-name"), Some(text::hint(&k, "deploy")), None))
                 .build(&k),
         )
@@ -127,12 +127,14 @@ mod blocks {
 
     fn notice(_: &(), _: &mut Cx<()>) -> El {
         let k = Kit::neutral(false);
-        col().w_full().h_full().padding(16.0).child(Notice::new(Tone::Warn, long()).action(rune::el().key("fix").size(60.0, 24.0)).build(&k))
+        col().w_full().h_full().padding(16.0).child(Notice::new(Tone::Warn, "word ".repeat(40)).key("n").action(rune::el().key("fix").size(60.0, 24.0)).build(&k))
     }
 
     #[test]
     fn notice_wraps_and_keeps_its_button() {
         let rt = rt(notice);
+        let t = rt.presented("n-text").unwrap().0;
+        assert!(t[3] > 40.0, "notice text is {} high", t[3]);
         let (x, y) = rt.find("fix").expect("fix button");
         assert!(x > 0.0 && x < W && y > 0.0, "button centre at {x},{y}");
         let b = rt.presented("fix").unwrap().0;

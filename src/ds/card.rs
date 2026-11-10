@@ -70,17 +70,27 @@ impl Card {
 
 /// Label on the left (fixed width), value right-aligned; one line, the value truncates.
 pub fn pair_row(k: &Kit, label: impl Into<String>, value: El) -> El {
+    pair_row_with(text::label(k, label), value)
+}
+
+/// `pair_row` with a ready-made label element (so a caller can key or style it).
+pub fn pair_row_with(label: El, value: El) -> El {
     row()
         .w_full()
         .gap(space::S2)
         .center_y()
-        .child(text::label(k, label).w(size::PAIR_LABEL))
+        .child(label.w(size::PAIR_LABEL))
         .child(row().grow(1.0).min_w(0.0).justify_end().child(value.shrink()))
 }
 
 /// Label above, value at full width (it may wrap).
 pub fn stacked_row(k: &Kit, label: impl Into<String>, value: El) -> El {
-    col().w_full().gap(space::S1).child(text::label(k, label)).child(value)
+    stacked_row_with(text::label(k, label), value)
+}
+
+/// `stacked_row` with a ready-made label element.
+pub fn stacked_row_with(label: El, value: El) -> El {
+    col().w_full().gap(space::S1).child(label).child(value)
 }
 
 /// A name with an optional hint beneath it and an optional control on the right.

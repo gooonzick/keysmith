@@ -50,15 +50,22 @@ pub struct Notice {
     text: String,
     detail: Option<String>,
     action: Option<El>,
+    key: Option<String>,
 }
 
 impl Notice {
     pub fn new(tone: Tone, text: impl Into<String>) -> Self {
-        Notice { tone, text: text.into(), detail: None, action: None }
+        Notice { tone, text: text.into(), detail: None, action: None, key: None }
     }
 
     pub fn detail(mut self, s: impl Into<String>) -> Self {
         self.detail = Some(s.into());
+        self
+    }
+
+    /// Keys the message text as `<key>-text`.
+    pub fn key(mut self, key: impl Into<String>) -> Self {
+        self.key = Some(key.into());
         self
     }
 
@@ -68,7 +75,11 @@ impl Notice {
     }
 
     pub fn build(self, k: &Kit) -> El {
-        let mut body = col().grow(1.0).min_w(0.0).gap(2.0).child(text::value(k, self.text).wrap());
+        let mut message = text::body(k, self.text);
+        if let Some(key) = self.key {
+            message = message.key(format!("{key}-text"));
+        }
+        let mut body = col().grow(1.0).min_w(0.0).gap(2.0).child(message);
         if let Some(d) = self.detail {
             body = body.child(text::hint(k, d));
         }

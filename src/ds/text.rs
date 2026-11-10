@@ -43,3 +43,8 @@ pub fn label(k: &Kit, s: impl Into<String>) -> El {
 pub fn hint(k: &Kit, s: impl Into<String>) -> El {
     styled(s, ty::hint(k), color::text_faint(k)).wrap()
 }
+
+/// A value that wraps instead of truncating: messages and sentences.
+pub fn body(k: &Kit, s: impl Into<String>) -> El {
+    styled(s, ty::value(k), color::text(k)).wrap()
+}
