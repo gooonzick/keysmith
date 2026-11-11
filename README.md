@@ -35,6 +35,7 @@ Keysmith watches `~/.ssh` and the included files, so changes from a terminal or 
 macOS (Apple silicon), through Homebrew:
 
 ```bash
+brew tap gooonzick/tap && brew trust gooonzick/tap
 brew install --cask gooonzick/tap/keysmith
 ```
 
