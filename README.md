@@ -30,7 +30,17 @@ A desktop app for macOS and Linux, written in Rust on [Rune](https://github.com/
 
 Keysmith watches `~/.ssh` and the included files, so changes from a terminal or an editor show up on their own.
 
-## Run
+## Install
+
+macOS (Apple silicon), through Homebrew:
+
+```bash
+brew install --cask gooonzick/tap/keysmith
+```
+
+The app isn't notarized; the cask clears the download flag so it opens without a Gatekeeper prompt. Without Homebrew, download the zip from [Releases](https://github.com/gooonzick/keysmith/releases), move `Keysmith.app` to Applications and run `xattr -dr com.apple.quarantine /Applications/Keysmith.app` once.
+
+## Run from source
 
 ```bash
 cargo run --release
